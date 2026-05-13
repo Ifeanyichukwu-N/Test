@@ -1,1 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SURCHI AI</title>
 
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;800&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+
+<style>
+
+/* ===== BASE ===== */
+*{margin:0;padding:0;box-sizing:border-box;scroll-behavior:smooth;}
+
+body{
+font-family:'Poppins',sans-serif;
+background:#000;
+color:white;
+overflow-x:hidden;
+}
+
+/* ===== BACKGROUND ===== */
+canvas{position:fixed;top:0;left:0;z-index:-2;}
+
+body::before{
+content:'';
+position:fixed;
+width:100%;height:100%;
+background:
+radial-gradient(circle at top left,#00f7ff22,transparent 20%),
+radial-gradient(circle at top right,#7b00ff33,transparent 25%),
+radial-gradient(circle at bottom left,#ff00ff22,transparent 25%),
+radial-gradient(circle at bottom right,#00ff9955,transparent 30%);
+z-index:-1;
+animation:glow 12s infinite;
+}
+
+@keyframes glow{
+0%{filter:hue-rotate(0deg);}
+50%{filter:hue-rotate(60deg);}
+100%{filter:hue-rotate(0deg);}
+}
+
+/* ===== NAV ===== */
+nav{
+position:fixed;
+width:100%;
+padding:20px 8%;
+display:flex;
+justify-content:space-between;
+align-items:center;
+background:rgba(0,0,0,0.4);
+backdrop-filter:blur(20px);
+z-index:1000;
+}
+
+.logo{
+display:flex;
+align-items:center;
+gap:10px;
+font-family:'Orbitron';
+}
+
+.logo img{
+width:40px;height:40px;border-radius:50%;
+}
+
+nav ul{
+display:flex;
+gap:20px;
+list-style:none;
+}
+
+nav ul li a{
+color:white;
+text-decoration:none;
+}
+
+/* ===== HERO ===== */
+.hero{
+min-height:100vh;
+display:flex;
+justify-content:center;
+align-items:center;
+text-align:center;
+padding:120px 8%;
+}
+
+.hero h1{
+font-size:4rem;
+font-family:'Orbitron';
+background:linear-gradient(to right,#00f7ff,#7b00ff);
+-webkit-background-clip:text;
+-webkit-text-fill-color:transparent;
+}
+
+.hero p{
+margin-top:20px;
+opacity:0.8;
+line-height:1.6;
+}
+
+.btn{
+margin-top:30px;
+padding:14px 30px;
+background:white;
+color:black;
+border-radius:50px;
+text-decoration:none;
+display:inline-block;
+font-weight:bold;
+}
+
+/* ===== CRYPTO BOX ===== */
+#crypto-box{
+margin-top:40px;
+padding:20px;
+border-radius:15px;
+background:rgba(255,255,255,0.05);
+border:1px solid rgba(255,255,255,0.1);
+max-width:350px;
+margin-left:auto;
+margin-right:auto;
+text-align:center;
+}
+
+/* ===== SECTIONS ===== */
+section{
+padding:100px 8%;
+}
+
+.section-title{
+text-align:center;
+font-family:'Orbitron';
+font-size:2.5rem;
+margin-bottom:40px;
+}
+
+/* ===== CARDS ===== */
+.grid{
+display:grid;
+grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
+gap:20px;
+}
+
+.card{
+background:rgba(255,255,255,0.05);
+padding:25px;
+border-radius:20px;
+border:1px solid rgba(255,255,255,0.08);
+}
+
+/* ===== LOADER ===== */
+#loader{
+position:fixed;
+width:100%;
+height:100%;
+background:#000;
+display:flex;
+flex-direction:column;
+justify-content:center;
+align-items:center;
+z-index:9999;
+}
+
+.loader-bar{
+width:250px;
+height:8px;
+background:#111;
+border-radius:20px;
+overflow:hidden;
+}
+
+.loader-fill{
+width:0%;
+height:100%;
+background:white;
+animation:load 3s forwards;
+}
+
+@keyframes load{100%{width:100%;}}
+
+</style>
+</head>
+
+<body>
+
+<!-- LOADER -->
+<div id="loader">
+<h1>INITIALIZING SURCHI</h1>
+<div class="loader-bar"><div class="loader-fill"></div></div>
+</div>
+
+<!-- NAV -->
+<nav>
+<div class="logo">
+<img src="https://raw.githubusercontent.com/surchiai/surchiai.github.io/refs/heads/main/SURCHI%20logo.jpg">
+<span>SURCHI AI</span>
+</div>
+
+<ul>
+<li><a href="#products">Products</a></li>
+<li><a href="#crypto">Crypto</a></li>
+<li><a href="#roadmap">Roadmap</a></li>
+</ul>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+<div>
+<h1>The Autonomous Intelligence Layer For DeFi</h1>
+<p>AI-powered blockchain intelligence, trading systems & neural analytics.</p>
+
+<a class="btn" href="#">Launch App</a>
+
+<!-- CRYPTO API -->
+<div id="crypto-box">
+<h3>Live Crypto Prices</h3>
+<p>BTC: $<span id="btc-price">Loading...</span></p>
+<p>ETH: $<span id="eth-price">Loading...</span></p>
+<p>SOL: $<span id="sol-price">Loading...</span></p>
+</div>
+
+</div>
+</section>
+
+<!-- PRODUCTS -->
+<section id="products">
+<h2 class="section-title">AI Products</h2>
+
+<div class="grid">
+<div class="card">Neural Trading AI</div>
+<div class="card">Whale Tracker</div>
+<div class="card">Sentiment Engine</div>
+</div>
+</section>
+
+<!-- ROADMAP -->
+<section id="roadmap">
+<h2 class="section-title">Roadmap</h2>
+<div class="grid">
+<div class="card">Phase 1: Launch</div>
+<div class="card">Phase 2: AI Expansion</div>
+<div class="card">Phase 3: Automation</div>
+</div>
+</section>
+
+<!-- THREE.JS BACKGROUND -->
+<script>
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(75,window.innerWidth/window.innerHeight,0.1,1000);
+const renderer = new THREE.WebGLRenderer({alpha:true});
+renderer.setSize(window.innerWidth,window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+const geometry = new THREE.TorusKnotGeometry(10,3,100,16);
+const material = new THREE.MeshBasicMaterial({color:0x00f7ff,wireframe:true});
+const mesh = new THREE.Mesh(geometry,material);
+
+scene.add(mesh);
+camera.position.z = 30;
+
+function animate(){
+requestAnimationFrame(animate);
+mesh.rotation.x += 0.003;
+mesh.rotation.y += 0.005;
+renderer.render(scene,camera);
+}
+animate();
+</script>
+
+<!-- CRYPTO API SCRIPT -->
+<script>
+async function getPrices(){
+const res = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana&vs_currencies=usd");
+const data = await res.json();
+
+document.getElementById("btc-price").innerText = data.bitcoin.usd.toLocaleString();
+document.getElementById("eth-price").innerText = data.ethereum.usd.toLocaleString();
+document.getElementById("sol-price").innerText = data.solana.usd.toLocaleString();
+}
+
+getPrices();
+setInterval(getPrices,10000);
+</script>
+
+<!-- LOADER SCRIPT -->
+<script>
+setTimeout(()=>{
+document.getElementById("loader").style.display="none";
+},3000);
+</script>
+
+</body>
+</html>
