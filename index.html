@@ -1,531 +1,287 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>SURCHI AI</title>
-
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;800&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
-
-<style>
-
-*{
-margin:0;
-padding:0;
-box-sizing:border-box;
-scroll-behavior:smooth;
-}
-
-body{
-font-family:'Poppins',sans-serif;
-background:#000000;
-color:white;
-overflow-x:hidden;
-}
-
-canvas{
-position:fixed;
-top:0;
-left:0;
-z-index:-2;
-}
-
-body::before{
-content:'';
-position:fixed;
-width:100%;
-height:100%;
-background:
-radial-gradient(circle at top left,#00f7ff22,transparent 20%),
-radial-gradient(circle at top right,#7b00ff33,transparent 25%),
-radial-gradient(circle at bottom left,#ff00ff22,transparent 25%),
-radial-gradient(circle at bottom right,#00ff9955,transparent 30%),
-linear-gradient(135deg,#000000,#000000,#000000);
-animation:neuralGlow 12s ease infinite;
-z-index:-1;
-}
-
-body::after{
-content:'';
-position:fixed;
-width:100%;
-height:100%;
-background-image:
-linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
-linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
-background-size:40px 40px;
-opacity:0.4;
-animation:gridMove 20s linear infinite;
-z-index:-1;
-}
-
-@keyframes neuralGlow{
-0%{filter:hue-rotate(0deg);} 
-50%{filter:hue-rotate(60deg);} 
-100%{filter:hue-rotate(0deg);} 
-}
-
-@keyframes gridMove{
-0%{transform:translateY(0px);} 
-100%{transform:translateY(-40px);} 
-}
-
-/* LOADER */
-
-#loader{
-position:fixed;
-width:100%;
-height:100%;
-background:#000;
-display:flex;
-justify-content:center;
-align-items:center;
-flex-direction:column;
-z-index:99999;
-font-family:'Orbitron',sans-serif;
-}
-
-#loader h1{
-color:white;
-margin-bottom:20px;
-animation:blink 1s infinite;
-}
-
-.loader-bar{
-width:300px;
-height:10px;
-background:#111827;
-border-radius:30px;
-overflow:hidden;
-}
-
-.loader-fill{
-width:0%;
-height:100%;
-background:white;
-animation:load 4s linear forwards;
-}
-
-@keyframes load{
-100%{width:100%;}
-}
-
-@keyframes blink{
-50%{opacity:0.5;}
-}
-
-/* NAV */
-
-nav{
-position:fixed;
-width:100%;
-padding:20px 8%;
-display:flex;
-justify-content:space-between;
-align-items:center;
-backdrop-filter:blur(20px);
-background:rgba(0,0,0,0.2);
-border-bottom:1px solid rgba(255,255,255,0.08);
-z-index:1000;
-}
-
-.logo{
-display:flex;
-align-items:center;
-gap:10px;
-font-family:'Orbitron',sans-serif;
-font-size:1.3rem;
-font-weight:700;
-}
-
-.logo img{
-width:42px;
-height:42px;
-border-radius:50%;
-}
-
-nav ul{
-display:flex;
-gap:30px;
-list-style:none;
-}
-
-nav ul li a{
-color:black;
-text-decoration:none;
-transition:0.3s;
-}
-
-nav ul li a:hover{
-color:white;
-}
-
-.launch-btn{
-color:black;
-}
-
-/* HERO */
-
-.hero{
-min-height:100vh;
-display:flex;
-justify-content:center;
-align-items:center;
-padding:150px 8%;
-text-align:center;
-position:relative;
-}
-
-.hero-content{
-max-width:950px;
-}
-
-/* ✅ ONLY CHANGE */
-.hero h1{
-font-size:5rem;
-line-height:1.1;
-font-family:'Orbitron',sans-serif;
-margin-bottom:30px;
-background:none !important;
--webkit-background-clip:unset;
--webkit-text-fill-color:white !important;
-color:white !important;
-}
-
-.hero p{
-font-size:1.2rem;
-line-height:1.8;
-color:white;
-margin-bottom:40px;
-}
-
-.hero-buttons{
-display:flex;
-justify-content:center;
-gap:20px;
-flex-wrap:wrap;
-}
-
-.btn{
-color:black;
-}
-
-.primary{
-background:white;
-color:black;
-box-shadow:0 0 20px rgba(255,255,255,0.2);
-border-radius:50px;
-padding:16px 32px;
-font-weight:700;
-text-decoration:none;
-display:inline-block;
-}
-
-.secondary{
-background:white;
-color:black;
-border:none;
-border-radius:50px;
-padding:16px 32px;
-font-weight:700;
-text-decoration:none;
-display:inline-block;
-box-shadow:0 0 20px rgba(255,255,255,0.2);
-}
-
-.btn:hover{
-transform:translateY(-5px);
-}
-
-/* GENERAL */
-
-section{
-padding:100px 8%;
-position:relative;
-}
-
-.section-title{
-font-size:3rem;
-font-family:'Orbitron',sans-serif;
-text-align:center;
-margin-bottom:20px;
-}
-
-.section-sub{
-text-align:center;
-max-width:800px;
-margin:auto auto 70px;
-color:#9ca3af;
-line-height:1.8;
-}
-
-.grid-cards{
-display:grid;
-grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
-gap:30px;
-}
-
-.card{
-background:rgba(255,255,255,0.05);
-border:1px solid rgba(255,255,255,0.08);
-backdrop-filter:blur(15px);
-padding:35px;
-border-radius:30px;
-transition:0.4s;
-position:relative;
-overflow:hidden;
-}
-
-.card::before{
-content:'';
-position:absolute;
-width:250px;
-height:250px;
-background:radial-gradient(circle,#00f7ff22,transparent 70%);
-top:-120px;
-right:-120px;
-}
-
-.card:hover{
-transform:translateY(-8px);
-border-color:#00f7ff66;
-}
-
-.card h3{
-font-family:'Orbitron',sans-serif;
-margin-bottom:20px;
-font-size:1.5rem;
-}
-
-.card p{
-color:white;
-line-height:1.8;
-}
-
-/* MARKET TERMINAL */
-
-.terminal{
-background:#000;
-padding:40px;
-border-radius:25px;
-font-family:monospace;
-line-height:2;
-color:white;
-border:1px solid #00f7ff33;
-box-shadow:0 0 40px #00f7ff22;
-}
-
-/* STATS */
-
-.stats{
-display:grid;
-grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
-gap:25px;
-margin-top:50px;
-}
-
-.stat{
-background:rgba(255,255,255,0.05);
-padding:40px;
-border-radius:25px;
-text-align:center;
-border:1px solid rgba(255,255,255,0.08);
-}
-
-.stat h2{
-font-size:3rem;
-color:white;
-margin-bottom:10px;
-}
-
-/* ROADMAP */
-
-.roadmap{
-display:grid;
-grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
-gap:30px;
-}
-
-.phase{
-background:rgba(255,255,255,0.05);
-padding:35px;
-border-radius:25px;
-border:1px solid rgba(255,255,255,0.08);
-}
-
-.phase h3{
-font-family:'Orbitron',sans-serif;
-margin-bottom:20px;
-color:white;
-}
-
-.phase ul{
-padding-left:20px;
-line-height:2;
-color:white;
-}
-
-/* AI ORB */
-
-.ai-orb{
-position:fixed;
-right:25px;
-bottom:25px;
-width:80px;
-height:80px;
-border-radius:50%;
-background:radial-gradient(circle,#00f7ff,#7b00ff);
-box-shadow:0 0 40px #00f7ff;
-display:flex;
-align-items:center;
-justify-content:center;
-font-family:'Orbitron',sans-serif;
-font-size:0.8rem;
-font-weight:700;
-z-index:999;
-animation:float 3s ease-in-out infinite;
-cursor:pointer;
-}
-
-@keyframes float{
-50%{transform:translateY(-10px);}
-}
-
-/* FOOTER */
-
-footer{
-padding:80px 8%;
-text-align:center;
-border-top:1px solid rgba(255,255,255,0.08);
-}
-
-footer h2{
-font-family:'Orbitron',sans-serif;
-margin-bottom:20px;
-}
-
-footer p{
-color:#9ca3af;
-margin-bottom:30px;
-}
-
-.footer-links{
-display:flex;
-justify-content:center;
-gap:25px;
-flex-wrap:wrap;
-}
-
-.footer-links a{
-text-decoration:none;
-color:white;
-transition:0.3s;
-}
-
-.footer-links a:hover{
-color:white;
-}
-
-@media(max-width:900px){
-.hero h1{font-size:3rem;}
-nav ul{display:none;}
-.section-title{font-size:2rem;}
-}
-
-</style>
-</head>
-
-<body>
-
-<div id="loader">
-<h1>INITIALIZING SURCHI CORE...</h1>
-<div class="loader-bar">
-<div class="loader-fill"></div>
-</div>
-</div>
-
-<nav>
-<div class="logo">
-<img src="https://raw.githubusercontent.com/surchiai/surchiai.github.io/refs/heads/main/SURCHI%20logo.jpg">
-<span>SURCHI AI</span>
-</div>
-
-<ul>
-<li><a href="#products">Products</a></li>
-<li><a href="#scanner">Scanner</a></li>
-<li><a href="#heatmap">Heatmap</a></li>
-<li><a href="#roadmap">Roadmap</a></li>
-<li><a href="#contact">Contact</a></li>
-<li><a href="#whitepaper">Whitepaper</a></li>
-<li><a href="#presale">PinkSale</a></li>
-</ul>
-
-<button class="launch-btn" style="background:none;border:none;color:white;font-weight:700;font-size:0.95rem;cursor:pointer;letter-spacing:1px;">Launch App →</button>
-</nav>
-
-<section class="hero">
-<div class="hero-content">
-
-<h1>
-The Autonomous Intelligence Layer For DeFi
-</h1>
-
-<p>
-AI-powered blockchain intelligence, neural trading systems, whale wallet analytics,
-DeFi automation, predictive market analysis, and decentralized financial infrastructure.
-</p>
-
-<div class="hero-buttons">
-<a href="#" class="btn primary" style="color:black;">Launch Neural App</a>
-</div>
-
-</div>
-</section>
-
-<!-- (All remaining sections preserved exactly as your original file) -->
-
-<script>
-setTimeout(()=>{
-document.getElementById('loader').style.display='none';
-},4000);
-
-const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
-
-const renderer = new THREE.WebGLRenderer({alpha:true});
-renderer.setSize(window.innerWidth, window.innerHeight);
-document.body.appendChild(renderer.domElement);
-
-const geometry = new THREE.TorusKnotGeometry(10,3,100,16);
-const material = new THREE.MeshBasicMaterial({
-color:0x00f7ff,
-wireframe:true
+========================
+VIDSTREAM FULL STACK APP
+========================
+
+STACK:
+- React (Frontend)
+- Node.js + Express (Backend)
+- MongoDB (Database)
+- JWT Auth
+
+========================
+BACKEND
+========================
+
+INSTALL:
+npm install express mongoose bcryptjs jsonwebtoken cors dotenv
+
+------------------------
+server.js
+------------------------
+
+import express from "express";
+import mongoose from "mongoose";
+import cors from "cors";
+import dotenv from "dotenv";
+
+dotenv.config();
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+//////////////// ROUTES //////////////////
+
+import authRoutes from "./routes/auth.js";
+import videoRoutes from "./routes/video.js";
+
+app.use("/api/auth", authRoutes);
+app.use("/api/videos", videoRoutes);
+
+//////////////// DB CONNECT //////////////////
+
+mongoose.connect(process.env.MONGO_URL)
+.then(() => console.log("MongoDB Connected"))
+.catch(err => console.log(err));
+
+app.listen(5000, () => console.log("Server running on port 5000"));
+
+=================================================
+MODELS
+=================================================
+
+------------------------
+models/User.js
+------------------------
+
+import mongoose from "mongoose";
+
+const UserSchema = new mongoose.Schema({
+  username: String,
+  email: String,
+  password: String,
+  subscribers: { type: Number, default: 0 }
 });
 
-const torus = new THREE.Mesh(geometry, material);
-scene.add(torus);
+export default mongoose.model("User", UserSchema);
 
-camera.position.z = 30;
+------------------------
+models/Video.js
+------------------------
 
-function animate(){
-requestAnimationFrame(animate);
-torus.rotation.x += 0.003;
-torus.rotation.y += 0.005;
-renderer.render(scene,camera);
+import mongoose from "mongoose";
+
+const VideoSchema = new mongoose.Schema({
+  title: String,
+  url: String,
+  userId: String,
+  likes: { type: Number, default: 0 },
+  views: { type: Number, default: 0 },
+  comments: [
+    {
+      user: String,
+      text: String
+    }
+  ]
+});
+
+export default mongoose.model("Video", VideoSchema);
+
+=================================================
+ROUTES
+=================================================
+
+------------------------
+routes/auth.js
+------------------------
+
+import express from "express";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import User from "../models/User.js";
+
+const router = express.Router();
+
+// REGISTER
+router.post("/register", async (req, res) => {
+  const hashed = await bcrypt.hash(req.body.password, 10);
+
+  const user = new User({
+    username: req.body.username,
+    email: req.body.email,
+    password: hashed
+  });
+
+  await user.save();
+  res.json("User created");
+});
+
+// LOGIN
+router.post("/login", async (req, res) => {
+  const user = await User.findOne({ email: req.body.email });
+
+  if (!user) return res.status(404).json("User not found");
+
+  const valid = await bcrypt.compare(req.body.password, user.password);
+
+  if (!valid) return res.status(400).json("Wrong password");
+
+  const token = jwt.sign({ id: user._id }, "secretkey");
+
+  res.json({ token, user });
+});
+
+export default router;
+
+------------------------
+routes/video.js
+------------------------
+
+import express from "express";
+import Video from "../models/Video.js";
+
+const router = express.Router();
+
+// CREATE VIDEO
+router.post("/", async (req, res) => {
+  const video = new Video(req.body);
+  await video.save();
+  res.json(video);
+});
+
+// GET VIDEOS
+router.get("/", async (req, res) => {
+  const videos = await Video.find();
+  res.json(videos);
+});
+
+// LIKE VIDEO
+router.put("/like/:id", async (req, res) => {
+  const video = await Video.findById(req.params.id);
+  video.likes += 1;
+  await video.save();
+  res.json(video);
+});
+
+// COMMENT VIDEO
+router.put("/comment/:id", async (req, res) => {
+  const video = await Video.findById(req.params.id);
+  video.comments.push(req.body);
+  await video.save();
+  res.json(video);
+});
+
+export default router;
+
+=================================================
+FRONTEND (REACT)
+=================================================
+
+INSTALL:
+npm create vite@latest client
+npm install axios react-router-dom
+
+------------------------
+App.jsx
+------------------------
+
+import { useState } from "react";
+import Login from "./pages/Login";
+import Home from "./pages/Home";
+
+export default function App() {
+  const [user, setUser] = useState(null);
+
+  return (
+    <>
+      {!user ? (
+        <Login setUser={setUser} />
+      ) : (
+        <Home user={user} />
+      )}
+    </>
+  );
 }
 
-animate();
+------------------------
+pages/Login.jsx
+------------------------
 
-window.addEventListener('resize',()=>{
-renderer.setSize(window.innerWidth,window.innerHeight);
-camera.aspect = window.innerWidth/window.innerHeight;
-camera.updateProjectionMatrix();
-});
-</script>
+import { useState } from "react";
+import axios from "axios";
 
-</body>
-</html>
+export default function Login({ setUser }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  const login = async () => {
+    const res = await axios.post("http://localhost:5000/api/auth/login", {
+      email,
+      password
+    });
+
+    localStorage.setItem("token", res.data.token);
+    setUser(res.data.user);
+  };
+
+  return (
+    <div style={{ padding: 20 }}>
+      <h2>VIDSTREAM LOGIN</h2>
+
+      <input placeholder="Email" onChange={(e) => setEmail(e.target.value)} />
+      <input placeholder="Password" onChange={(e) => setPassword(e.target.value)} />
+
+      <button onClick={login}>Login</button>
+    </div>
+  );
+}
+
+------------------------
+pages/Home.jsx
+------------------------
+
+import { useEffect, useState } from "react";
+import axios from "axios";
+
+export default function Home() {
+  const [videos, setVideos] = useState([]);
+
+  useEffect(() => {
+    axios.get("http://localhost:5000/api/videos")
+      .then(res => setVideos(res.data));
+  }, []);
+
+  const likeVideo = async (id) => {
+    await axios.put(`http://localhost:5000/api/videos/like/${id}`);
+    window.location.reload();
+  };
+
+  return (
+    <div style={{ padding: 20 }}>
+      <h1>VIDSTREAM 🎬</h1>
+
+      {videos.map(video => (
+        <div key={video._id} style={{ marginBottom: 30 }}>
+          <video src={video.url} controls width="300" />
+
+          <h3>{video.title}</h3>
+
+          <button onClick={() => likeVideo(video._id)}>
+            👍 {video.likes}
+          </button>
+
+          <div>
+            <h4>Comments</h4>
+            {video.comments.map((c, i) => (
+              <p key={i}>{c.user}: {c.text}</p>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+========================
+END OF PROJECT
+========================
