@@ -1,1 +1,1929 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SURCHI AI</title>
 
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;600;700;800&family=Bebas+Neue&display=swap" rel="stylesheet">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+
+<style>
+:root {
+  --cyan: #00f7ff;
+  --violet: #7b00ff;
+  --magenta: #ff00aa;
+  --green: #00ff99;
+  --bg: #03030a;
+  --surface: rgba(255,255,255,0.03);
+  --border: rgba(255,255,255,0.07);
+  --text-muted: #5a5a72;
+  --text-dim: #9090aa;
+}
+
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'Syne', sans-serif;
+  background: var(--bg);
+  color: white;
+  overflow-x: hidden;
+  cursor: none;
+}
+
+/* CUSTOM CURSOR */
+.cursor {
+  position: fixed;
+  width: 12px;
+  height: 12px;
+  background: var(--cyan);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 99999;
+  mix-blend-mode: difference;
+  transition: transform 0.1s ease;
+}
+.cursor-ring {
+  position: fixed;
+  width: 40px;
+  height: 40px;
+  border: 1px solid rgba(0,247,255,0.4);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 99998;
+  transition: all 0.12s ease;
+}
+body:hover .cursor { transform: scale(1); }
+
+canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: -2;
+}
+
+/* SCAN-LINE OVERLAY */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.08) 2px,
+    rgba(0,0,0,0.08) 4px
+  );
+  pointer-events: none;
+  z-index: 9000;
+}
+
+/* NOISE GRAIN */
+body::after {
+  content: '';
+  position: fixed;
+  inset: -200%;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 8999;
+  opacity: 0.6;
+  animation: grain 0.5s steps(1) infinite;
+}
+
+@keyframes grain {
+  0%,100%{transform:translate(0,0);}
+  10%{transform:translate(-2%,-3%);}
+  20%{transform:translate(3%,2%);}
+  30%{transform:translate(-1%,3%);}
+  40%{transform:translate(2%,-1%);}
+  50%{transform:translate(-3%,1%);}
+  60%{transform:translate(1%,-2%);}
+  70%{transform:translate(2%,3%);}
+  80%{transform:translate(-2%,1%);}
+  90%{transform:translate(3%,-3%);}
+}
+
+/* LOADER */
+#loader {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 99999;
+  overflow: hidden;
+}
+
+#loader::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    90deg,
+    transparent,
+    transparent 49px,
+    rgba(0,247,255,0.03) 49px,
+    rgba(0,247,255,0.03) 50px
+  );
+}
+
+.loader-label {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.75rem;
+  letter-spacing: 0.3em;
+  color: var(--cyan);
+  margin-bottom: 30px;
+  animation: blink 0.8s step-start infinite;
+}
+
+.loader-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: clamp(3rem, 10vw, 8rem);
+  letter-spacing: 0.15em;
+  background: linear-gradient(135deg, #fff 0%, var(--cyan) 50%, var(--violet) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 50px;
+}
+
+.loader-bar {
+  width: 320px;
+  height: 1px;
+  background: rgba(255,255,255,0.1);
+  position: relative;
+  overflow: hidden;
+}
+
+.loader-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--cyan), var(--violet));
+  animation: load 3.8s cubic-bezier(0.25,0.1,0.25,1) forwards;
+  box-shadow: 0 0 20px var(--cyan);
+}
+
+.loader-percent {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-top: 12px;
+  letter-spacing: 0.2em;
+}
+
+@keyframes load { 100% { width: 100%; } }
+@keyframes blink { 50% { opacity: 0; } }
+
+/* NAV */
+nav {
+  position: fixed;
+  width: 100%;
+  padding: 0 6%;
+  height: 70px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 1000;
+  border-bottom: 1px solid var(--border);
+}
+
+nav::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(3,3,10,0.7);
+  backdrop-filter: blur(24px);
+  z-index: -1;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.4rem;
+  letter-spacing: 0.2em;
+}
+
+.logo img {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid rgba(0,247,255,0.3);
+}
+
+.logo-dot {
+  width: 6px;
+  height: 6px;
+  background: var(--cyan);
+  border-radius: 50%;
+  animation: pulse-dot 2s ease-in-out infinite;
+  margin-left: 4px;
+}
+
+@keyframes pulse-dot {
+  0%,100% { box-shadow: 0 0 0 0 rgba(0,247,255,0.6); }
+  50% { box-shadow: 0 0 0 6px rgba(0,247,255,0); }
+}
+
+nav ul {
+  display: flex;
+  gap: 36px;
+  list-style: none;
+}
+
+nav ul li a {
+  color: var(--text-dim);
+  text-decoration: none;
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  font-family: 'Space Mono', monospace;
+  text-transform: uppercase;
+  transition: color 0.2s;
+  position: relative;
+}
+
+nav ul li a::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  width: 0;
+  height: 1px;
+  background: var(--cyan);
+  transition: width 0.3s ease;
+}
+
+nav ul li a:hover { color: white; }
+nav ul li a:hover::after { width: 100%; }
+
+.launch-btn {
+  background: none;
+  border: 1px solid rgba(255,255,255,0.15);
+  color: white;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  cursor: none;
+  padding: 10px 22px;
+  border-radius: 2px;
+  transition: all 0.3s;
+  position: relative;
+  overflow: hidden;
+}
+
+.launch-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--cyan);
+  transform: translateX(-101%);
+  transition: transform 0.3s ease;
+}
+
+.launch-btn:hover {
+  color: #000;
+  border-color: var(--cyan);
+}
+
+.launch-btn:hover::before { transform: translateX(0); }
+.launch-btn span { position: relative; z-index: 1; }
+
+/* HERO */
+.hero {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  padding: 120px 6% 80px;
+  gap: 60px;
+  position: relative;
+  overflow: hidden;
+}
+
+.hero-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: var(--cyan);
+  margin-bottom: 28px;
+  padding: 8px 16px;
+  border: 1px solid rgba(0,247,255,0.2);
+  border-radius: 2px;
+  background: rgba(0,247,255,0.04);
+}
+
+.hero-tag-dot {
+  width: 5px;
+  height: 5px;
+  background: var(--cyan);
+  border-radius: 50%;
+  animation: blink 1s infinite;
+}
+
+.hero h1 {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: clamp(3.5rem, 7vw, 7rem);
+  line-height: 0.95;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-bottom: 36px;
+}
+
+.hero h1 .line-accent {
+  display: block;
+  background: linear-gradient(90deg, var(--cyan), var(--violet));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.hero h1 .line-stroke {
+  display: block;
+  -webkit-text-stroke: 1px rgba(255,255,255,0.3);
+  -webkit-text-fill-color: transparent;
+}
+
+.hero p {
+  font-size: 0.95rem;
+  line-height: 1.9;
+  color: var(--text-dim);
+  margin-bottom: 48px;
+  max-width: 480px;
+}
+
+.hero-buttons {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: white;
+  color: #000;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.75rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  text-decoration: none;
+  padding: 16px 32px;
+  border-radius: 2px;
+  font-weight: 700;
+  transition: all 0.3s;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-primary::after {
+  content: '→';
+  transition: transform 0.3s;
+}
+
+.btn-primary:hover { background: var(--cyan); }
+.btn-primary:hover::after { transform: translateX(4px); }
+
+.hero-visual {
+  position: relative;
+  height: 520px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hero-orb {
+  position: absolute;
+  width: 380px;
+  height: 380px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, rgba(0,247,255,0.15), transparent 60%),
+              radial-gradient(circle at 70% 70%, rgba(123,0,255,0.15), transparent 60%);
+  border: 1px solid rgba(0,247,255,0.1);
+  animation: orb-spin 12s linear infinite;
+}
+
+.hero-orb::before, .hero-orb::after {
+  content: '';
+  position: absolute;
+  inset: 20px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.04);
+}
+
+.hero-orb::after {
+  inset: 50px;
+  border-color: rgba(0,247,255,0.08);
+  animation: orb-spin 8s linear infinite reverse;
+}
+
+@keyframes orb-spin {
+  100% { transform: rotate(360deg); }
+}
+
+.hero-data-card {
+  position: absolute;
+  background: rgba(3,3,10,0.9);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(20px);
+  padding: 20px 24px;
+  border-radius: 4px;
+  font-family: 'Space Mono', monospace;
+}
+
+.hero-data-card.top-right {
+  top: 40px;
+  right: -20px;
+  min-width: 200px;
+}
+
+.hero-data-card.bottom-left {
+  bottom: 60px;
+  left: -20px;
+  min-width: 180px;
+}
+
+.data-label {
+  font-size: 0.6rem;
+  letter-spacing: 0.2em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.data-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--cyan);
+}
+
+.data-change {
+  font-size: 0.65rem;
+  color: var(--green);
+  margin-top: 4px;
+}
+
+/* HORIZONTAL TICKER */
+.ticker-wrap {
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: rgba(0,247,255,0.02);
+  overflow: hidden;
+  padding: 14px 0;
+  white-space: nowrap;
+}
+
+.ticker-track {
+  display: inline-flex;
+  gap: 60px;
+  animation: ticker 25s linear infinite;
+}
+
+.ticker-item {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.15em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.ticker-item span {
+  color: var(--cyan);
+  margin-right: 8px;
+}
+
+@keyframes ticker {
+  100% { transform: translateX(-50%); }
+}
+
+/* SECTION BASE */
+section {
+  padding: 100px 6%;
+  position: relative;
+}
+
+.section-eyebrow {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.65rem;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  color: var(--cyan);
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.section-eyebrow::before {
+  content: '';
+  width: 30px;
+  height: 1px;
+  background: var(--cyan);
+}
+
+.section-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: clamp(2.5rem, 5vw, 5rem);
+  letter-spacing: 0.05em;
+  line-height: 1;
+  margin-bottom: 24px;
+  text-align: center;
+}
+
+.section-sub {
+  text-align: center;
+  max-width: 640px;
+  margin: 0 auto 70px;
+  color: var(--text-dim);
+  font-size: 0.92rem;
+  line-height: 1.9;
+}
+
+/* PRODUCTS — ASYMMETRIC LAYOUT */
+#products .section-header {
+  text-align: center;
+  margin-bottom: 70px;
+}
+
+.products-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+}
+
+.product-card {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--border);
+  padding: 50px 44px;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.4s;
+  cursor: none;
+}
+
+.product-card::before {
+  content: attr(data-num);
+  position: absolute;
+  top: -20px;
+  right: 30px;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 8rem;
+  color: rgba(255,255,255,0.02);
+  line-height: 1;
+  transition: color 0.4s;
+}
+
+.product-card::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--cyan), var(--violet));
+  transition: width 0.5s ease;
+}
+
+.product-card:hover { background: rgba(0,247,255,0.03); }
+.product-card:hover::before { color: rgba(0,247,255,0.06); }
+.product-card:hover::after { width: 100%; }
+
+.product-icon {
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  margin-bottom: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.product-card:hover .product-icon {
+  border-color: rgba(0,247,255,0.4);
+  box-shadow: 0 0 20px rgba(0,247,255,0.1);
+}
+
+.product-card h3 {
+  font-family: 'Syne', sans-serif;
+  font-size: 1.3rem;
+  font-weight: 800;
+  margin-bottom: 16px;
+  letter-spacing: -0.01em;
+}
+
+.product-card p {
+  color: var(--text-dim);
+  font-size: 0.88rem;
+  line-height: 1.85;
+}
+
+/* WHITEPAPER */
+#whitepaper {
+  background: linear-gradient(135deg, rgba(0,247,255,0.04), rgba(123,0,255,0.04));
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.whitepaper-inner {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 80px;
+  align-items: center;
+}
+
+.whitepaper-text h2 {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: clamp(2.5rem, 4vw, 4.5rem);
+  letter-spacing: 0.05em;
+  line-height: 1;
+  margin-bottom: 24px;
+}
+
+.whitepaper-text p {
+  color: var(--text-dim);
+  line-height: 1.9;
+  font-size: 0.92rem;
+  margin-bottom: 36px;
+}
+
+.whitepaper-doc {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--border);
+  padding: 40px;
+  border-radius: 4px;
+  position: relative;
+  overflow: hidden;
+}
+
+.whitepaper-doc::before {
+  content: 'PDF';
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.2em;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  padding: 4px 8px;
+}
+
+.doc-lines {
+  margin-bottom: 24px;
+}
+
+.doc-line {
+  height: 1px;
+  background: rgba(255,255,255,0.06);
+  margin-bottom: 14px;
+  border-radius: 2px;
+}
+
+.doc-line:nth-child(1) { width: 80%; }
+.doc-line:nth-child(2) { width: 65%; }
+.doc-line:nth-child(3) { width: 90%; }
+.doc-line:nth-child(4) { width: 55%; }
+.doc-line:nth-child(5) { width: 75%; }
+
+/* PRESALE */
+#presale {
+  position: relative;
+  overflow: hidden;
+}
+
+#presale::before {
+  content: 'PRESALE';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: clamp(6rem, 20vw, 20rem);
+  color: rgba(255,255,255,0.012);
+  white-space: nowrap;
+  pointer-events: none;
+  letter-spacing: 0.1em;
+}
+
+.presale-inner {
+  max-width: 760px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.presale-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  background: rgba(255,0,170,0.1);
+  border: 1px solid rgba(255,0,170,0.25);
+  color: var(--magenta);
+  padding: 8px 20px;
+  border-radius: 2px;
+  margin-bottom: 36px;
+}
+
+.presale-badge::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  background: var(--magenta);
+  border-radius: 50%;
+  animation: blink 0.8s infinite;
+}
+
+.presale-inner h2 {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: clamp(2.5rem, 5vw, 5.5rem);
+  letter-spacing: 0.05em;
+  line-height: 1;
+  margin-bottom: 24px;
+}
+
+.presale-inner p {
+  color: var(--text-dim);
+  font-size: 0.95rem;
+  line-height: 1.9;
+  margin-bottom: 44px;
+}
+
+.presale-box {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--border);
+  padding: 44px;
+  text-align: left;
+  position: relative;
+}
+
+.presale-box h3 {
+  font-family: 'Syne', sans-serif;
+  font-size: 1.2rem;
+  font-weight: 800;
+  margin-bottom: 14px;
+}
+
+.presale-box p {
+  color: var(--text-dim);
+  font-size: 0.88rem;
+  line-height: 1.8;
+  margin-bottom: 30px;
+}
+
+/* PRODUCT SHOWCASE */
+#product-showcase .products-grid {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+/* SCANNER — TERMINAL */
+#scanner .section-header { text-align: center; margin-bottom: 50px; }
+
+.terminal-wrap {
+  position: relative;
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+.terminal-bar {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  border-bottom: none;
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-radius: 4px 4px 0 0;
+}
+
+.t-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.t-dot.red { background: #ff5f57; }
+.t-dot.yellow { background: #febc2e; }
+.t-dot.green { background: #28c840; }
+
+.terminal-title {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-left: 8px;
+  letter-spacing: 0.1em;
+}
+
+.terminal {
+  background: #010106;
+  border: 1px solid var(--border);
+  border-radius: 0 0 4px 4px;
+  padding: 36px 40px;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.82rem;
+  line-height: 2.2;
+  position: relative;
+  overflow: hidden;
+}
+
+.terminal-line {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  opacity: 0;
+  animation: fadeInLine 0.5s ease forwards;
+}
+
+.terminal-line:nth-child(1) { animation-delay: 0.2s; }
+.terminal-line:nth-child(2) { animation-delay: 0.6s; }
+.terminal-line:nth-child(3) { animation-delay: 1.0s; }
+.terminal-line:nth-child(4) { animation-delay: 1.4s; }
+.terminal-line:nth-child(5) { animation-delay: 1.8s; }
+.terminal-line:nth-child(6) { animation-delay: 2.2s; }
+.terminal-line:nth-child(7) { animation-delay: 2.6s; }
+
+@keyframes fadeInLine {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.t-prefix { color: var(--cyan); font-weight: 700; }
+.t-text { color: #c0c0d0; }
+.t-badge {
+  margin-left: auto;
+  font-size: 0.62rem;
+  letter-spacing: 0.15em;
+  padding: 2px 8px;
+  border-radius: 2px;
+}
+.t-badge.bullish { background: rgba(0,255,153,0.1); color: var(--green); border: 1px solid rgba(0,255,153,0.2); }
+.t-badge.medium { background: rgba(255,190,0,0.1); color: #ffbe00; border: 1px solid rgba(255,190,0,0.2); }
+.t-badge.strong { background: rgba(0,247,255,0.1); color: var(--cyan); border: 1px solid rgba(0,247,255,0.2); }
+.t-badge.active { background: rgba(123,0,255,0.15); color: #a855f7; border: 1px solid rgba(123,0,255,0.3); }
+
+.terminal-cursor {
+  display: inline-block;
+  width: 8px;
+  height: 14px;
+  background: var(--cyan);
+  margin-left: 4px;
+  animation: blink 0.7s step-start infinite;
+  vertical-align: middle;
+}
+
+/* HEATMAP */
+.heatmap-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2px;
+}
+
+.heat-card {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--border);
+  padding: 40px 36px;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.4s;
+  cursor: none;
+}
+
+.heat-card:hover { background: rgba(0,247,255,0.04); }
+
+.heat-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--cyan), var(--violet));
+  transition: width 0.6s ease;
+}
+
+.heat-card:hover .heat-bar { box-shadow: 0 0 15px var(--cyan); }
+
+.heat-label {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 20px;
+}
+
+.heat-card h3 {
+  font-family: 'Syne', sans-serif;
+  font-size: 1.1rem;
+  font-weight: 800;
+  margin-bottom: 14px;
+}
+
+.heat-card p {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  line-height: 1.8;
+}
+
+/* STATS */
+.stats-section {
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  padding: 80px 6%;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0;
+}
+
+.stat {
+  padding: 50px 40px;
+  border-right: 1px solid var(--border);
+  position: relative;
+  overflow: hidden;
+}
+
+.stat:last-child { border-right: none; }
+
+.stat::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 40px;
+  right: 40px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+  opacity: 0;
+  transition: opacity 0.4s;
+}
+
+.stat:hover::before { opacity: 1; }
+
+.stat-num {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: clamp(2.5rem, 4vw, 4.5rem);
+  letter-spacing: 0.05em;
+  background: linear-gradient(135deg, white, var(--cyan));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 10px;
+}
+
+.stat p {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.65rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* TOKEN ALLOCATION */
+#allocation {
+  position: relative;
+}
+
+.allocation-inner {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 80px;
+  align-items: center;
+}
+
+.allocation-text h2 {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: clamp(2.5rem, 4vw, 4.5rem);
+  letter-spacing: 0.05em;
+  line-height: 1;
+  margin-bottom: 20px;
+}
+
+.allocation-text .supply {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.15em;
+  color: var(--text-muted);
+  margin-bottom: 40px;
+  text-transform: uppercase;
+}
+
+.alloc-item {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.alloc-swatch {
+  width: 3px;
+  height: 36px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.alloc-label {
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  flex: 1;
+  line-height: 1.5;
+}
+
+.alloc-pct {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 2rem;
+  letter-spacing: 0.05em;
+  color: white;
+}
+
+.donut-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.donut-svg {
+  width: 300px;
+  height: 300px;
+  transform: rotate(-90deg);
+  filter: drop-shadow(0 0 30px rgba(0,247,255,0.2));
+}
+
+.donut-center {
+  position: absolute;
+  text-align: center;
+}
+
+.donut-center-label {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.donut-center-val {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 2rem;
+  letter-spacing: 0.05em;
+}
+
+/* ROADMAP */
+#roadmap .section-header { text-align: center; margin-bottom: 70px; }
+
+.roadmap {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0;
+  border: 1px solid var(--border);
+}
+
+.phase {
+  padding: 44px 36px;
+  border-right: 1px solid var(--border);
+  position: relative;
+  overflow: hidden;
+  transition: background 0.4s;
+}
+
+.phase:last-child { border-right: none; }
+.phase:hover { background: rgba(0,247,255,0.02); }
+
+.phase-num {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 5rem;
+  line-height: 1;
+  color: rgba(255,255,255,0.04);
+  margin-bottom: 20px;
+  transition: color 0.4s;
+}
+
+.phase:hover .phase-num { color: rgba(0,247,255,0.08); }
+
+.phase h3 {
+  font-family: 'Syne', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  margin-bottom: 24px;
+  text-transform: uppercase;
+  color: var(--cyan);
+}
+
+.phase ul {
+  list-style: none;
+  padding: 0;
+}
+
+.phase ul li {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.phase ul li::before {
+  content: '';
+  width: 4px;
+  height: 4px;
+  background: var(--cyan);
+  border-radius: 50%;
+  flex-shrink: 0;
+  opacity: 0.5;
+}
+
+.phase ul li:last-child { border-bottom: none; }
+
+/* SIGN IN */
+#signin .section-header { text-align: center; margin-bottom: 50px; }
+
+.signin-wrap {
+  max-width: 520px;
+  margin: 0 auto;
+}
+
+.signin-card {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--border);
+  padding: 56px 52px;
+  position: relative;
+  overflow: hidden;
+}
+
+.signin-card h3 {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 2.5rem;
+  letter-spacing: 0.1em;
+  margin-bottom: 32px;
+}
+
+.field-label {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+  display: block;
+}
+
+.email-input {
+  width: 100%;
+  padding: 16px 20px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  color: white;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.85rem;
+  margin-bottom: 24px;
+  outline: none;
+  transition: border-color 0.3s;
+}
+
+.email-input::placeholder { color: var(--text-muted); }
+.email-input:focus { border-color: rgba(0,247,255,0.4); }
+
+.btn-submit {
+  width: 100%;
+  padding: 18px;
+  background: white;
+  color: #000;
+  border: none;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.75rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  font-weight: 700;
+  cursor: none;
+  transition: background 0.3s;
+  border-radius: 2px;
+}
+
+.btn-submit:hover { background: var(--cyan); }
+
+/* FOOTER */
+footer {
+  padding: 80px 6% 40px;
+  border-top: 1px solid var(--border);
+  position: relative;
+  overflow: hidden;
+}
+
+.footer-top {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 80px;
+  margin-bottom: 60px;
+}
+
+.footer-brand h2 {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 3rem;
+  letter-spacing: 0.15em;
+  margin-bottom: 14px;
+}
+
+.footer-brand p {
+  color: var(--text-dim);
+  font-size: 0.88rem;
+  line-height: 1.8;
+  max-width: 340px;
+}
+
+.footer-links-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 36px;
+  align-content: flex-start;
+}
+
+.footer-links-grid a {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  text-decoration: none;
+  color: var(--text-muted);
+  transition: color 0.2s;
+}
+
+.footer-links-grid a:hover { color: white; }
+
+.footer-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 30px;
+  border-top: 1px solid var(--border);
+}
+
+.footer-bottom-copy {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.65rem;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+}
+
+.footer-big-text {
+  position: absolute;
+  bottom: -20px;
+  left: 6%;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: clamp(5rem, 15vw, 14rem);
+  color: rgba(255,255,255,0.015);
+  letter-spacing: 0.1em;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/* WHITEPAPER FLOAT BTN */
+.ai-orb {
+  position: fixed;
+  right: 28px;
+  bottom: 28px;
+  background: white;
+  color: #000;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.65rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  text-decoration: none;
+  font-weight: 700;
+  padding: 14px 22px;
+  border-radius: 2px;
+  z-index: 900;
+  transition: background 0.3s;
+  cursor: none;
+  border: 1px solid rgba(255,255,255,0.2);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ai-orb::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  background: var(--cyan);
+  border-radius: 50%;
+  animation: pulse-dot 1.5s ease-in-out infinite;
+}
+
+.ai-orb:hover { background: var(--cyan); }
+
+/* RESPONSIVE */
+@media (max-width: 1024px) {
+  .hero { grid-template-columns: 1fr; }
+  .hero-visual { display: none; }
+  .products-grid { grid-template-columns: 1fr 1fr; }
+  #product-showcase .products-grid { grid-template-columns: 1fr 1fr; }
+  .heatmap-grid { grid-template-columns: 1fr 1fr; }
+  .stats { grid-template-columns: 1fr 1fr; }
+  .stat { border-bottom: 1px solid var(--border); }
+  .roadmap { grid-template-columns: 1fr 1fr; }
+  .phase { border-bottom: 1px solid var(--border); }
+  .whitepaper-inner { grid-template-columns: 1fr; gap: 40px; }
+  .allocation-inner { grid-template-columns: 1fr; gap: 50px; }
+  .footer-top { grid-template-columns: 1fr; gap: 40px; }
+}
+
+@media (max-width: 640px) {
+  nav ul { display: none; }
+  .products-grid { grid-template-columns: 1fr; }
+  .heatmap-grid { grid-template-columns: 1fr; }
+  .stats { grid-template-columns: 1fr 1fr; }
+  .roadmap { grid-template-columns: 1fr; }
+  .footer-bottom { flex-direction: column; gap: 16px; text-align: center; }
+}
+</style>
+</head>
+<body>
+
+<!-- CURSOR -->
+<div class="cursor" id="cursor"></div>
+<div class="cursor-ring" id="cursorRing"></div>
+
+<!-- LOADER -->
+<div id="loader">
+  <div class="loader-label">▶ INITIALIZING SURCHI CORE</div>
+  <div class="loader-title">SURCHI AI</div>
+  <div class="loader-bar">
+    <div class="loader-fill"></div>
+  </div>
+  <div class="loader-percent">NEURAL SYSTEMS LOADING...</div>
+</div>
+
+<!-- NAV -->
+<nav>
+  <div class="logo">
+    <img src="https://raw.githubusercontent.com/surchiai/surchiai.github.io/refs/heads/main/SURCHI%20logo.jpg" alt="SURCHI">
+    <span>SURCHI AI</span>
+    <div class="logo-dot"></div>
+  </div>
+
+  <ul>
+    <li><a href="#products">Products</a></li>
+    <li><a href="#scanner">Scanner</a></li>
+    <li><a href="#heatmap">Heatmap</a></li>
+    <li><a href="#roadmap">Roadmap</a></li>
+    <li><a href="#contact">Contact</a></li>
+    <li><a href="#whitepaper">Whitepaper</a></li>
+    <li><a href="#presale">PinkSale</a></li>
+  </ul>
+
+  <button class="launch-btn"><span>Launch App →</span></button>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-content">
+    <div class="hero-tag">
+      <span class="hero-tag-dot"></span>
+      Autonomous DeFi Intelligence
+    </div>
+    <h1>
+      <span class="line-stroke">The</span>
+      <span class="line-accent">Autonomous</span>
+      Intelligence Layer
+      <span class="line-stroke">For DeFi</span>
+    </h1>
+    <p>
+      AI-powered blockchain intelligence, neural trading systems, whale wallet analytics,
+      DeFi automation, predictive market analysis, and decentralized financial infrastructure.
+    </p>
+    <div class="hero-buttons">
+      <a href="#" class="btn-primary">Launch Neural App</a>
+    </div>
+  </div>
+
+  <div class="hero-visual">
+    <div class="hero-orb"></div>
+    <div class="hero-data-card top-right">
+      <div class="data-label">Whale Activity</div>
+      <div class="data-value">↑ HIGH</div>
+      <div class="data-change">▲ 23.4% movement detected</div>
+    </div>
+    <div class="hero-data-card bottom-left">
+      <div class="data-label">Neural Score</div>
+      <div class="data-value">94.7</div>
+      <div class="data-change">▲ BULLISH SIGNAL</div>
+    </div>
+  </div>
+</section>
+
+<!-- TICKER -->
+<div class="ticker-wrap">
+  <div class="ticker-track">
+    <div class="ticker-item"><span>[AI]</span>Whale Wallet Detected</div>
+    <div class="ticker-item"><span>[SOL]</span>Momentum: Strong</div>
+    <div class="ticker-item"><span>[NEURAL]</span>Confidence Rising</div>
+    <div class="ticker-item"><span>[SCAN]</span>Anomaly Detected</div>
+    <div class="ticker-item"><span>[DEFI]</span>Liquidity Shifting</div>
+    <div class="ticker-item"><span>[AI]</span>Market Score: Medium</div>
+    <div class="ticker-item"><span>[SUCHI]</span>Presale Incoming</div>
+    <!-- Repeat for seamless loop -->
+    <div class="ticker-item"><span>[AI]</span>Whale Wallet Detected</div>
+    <div class="ticker-item"><span>[SOL]</span>Momentum: Strong</div>
+    <div class="ticker-item"><span>[NEURAL]</span>Confidence Rising</div>
+    <div class="ticker-item"><span>[SCAN]</span>Anomaly Detected</div>
+    <div class="ticker-item"><span>[DEFI]</span>Liquidity Shifting</div>
+    <div class="ticker-item"><span>[AI]</span>Market Score: Medium</div>
+    <div class="ticker-item"><span>[SUCHI]</span>Presale Incoming</div>
+  </div>
+</div>
+
+<!-- PRODUCTS -->
+<section id="products">
+  <div class="section-header">
+    <div class="section-eyebrow" style="justify-content:center;">AI Products</div>
+    <h2 class="section-title">AI Products</h2>
+    <p class="section-sub">Powerful autonomous intelligence systems for the next generation of decentralized finance.</p>
+  </div>
+  <div class="products-grid">
+    <div class="product-card" data-num="01">
+      <div class="product-icon">🛡</div>
+      <h3>Surchi Sentinel</h3>
+      <p>Tracks whale wallets, social sentiment, token anomalies, smart money movement, and fear & greed signals in real time.</p>
+    </div>
+    <div class="product-card" data-num="02">
+      <div class="product-icon">⚡</div>
+      <h3>Neural Trade AI</h3>
+      <p>Autonomous trading intelligence powered by neural chart analysis, trend prediction, and AI market scoring.</p>
+    </div>
+    <div class="product-card" data-num="03">
+      <div class="product-icon">🧠</div>
+      <h3>Chain Brain</h3>
+      <p>Advanced blockchain analysis engine for contract scanning, rug detection, wallet analytics, and DeFi monitoring.</p>
+    </div>
+    <div class="product-card" data-num="04">
+      <div class="product-icon">🤖</div>
+      <h3>AI Agent Marketplace</h3>
+      <p>Deploy, monetize, and share autonomous AI agents built for trading, analytics, and blockchain automation.</p>
+    </div>
+  </div>
+</section>
+
+<!-- WHITEPAPER -->
+<section id="whitepaper">
+  <div class="whitepaper-inner">
+    <div class="whitepaper-text">
+      <div class="section-eyebrow">Documentation</div>
+      <h2>Official<br>Whitepaper</h2>
+      <p>Explore the complete SURCHI AI vision, neural infrastructure, token utility, and future decentralized intelligence ecosystem.</p>
+      <a href="https://github.com/surchiai/Official-white-paper" class="btn-primary">Open Whitepaper</a>
+    </div>
+    <div class="whitepaper-doc">
+      <div class="doc-lines">
+        <div class="doc-line"></div>
+        <div class="doc-line"></div>
+        <div class="doc-line"></div>
+        <div class="doc-line"></div>
+        <div class="doc-line"></div>
+      </div>
+      <div style="font-family:'Space Mono',monospace;font-size:0.75rem;color:var(--text-dim);line-height:1.9;">
+        <p style="color:white;font-weight:700;margin-bottom:12px;">SURCHI AI Whitepaper</p>
+        <p>Read the official documentation covering AI systems, tokenomics, roadmap, neural products, ecosystem utilities, and decentralized automation.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PRESALE -->
+<section id="presale">
+  <div class="presale-inner">
+    <div class="presale-badge">Upcoming Launch</div>
+    <h2>Upcoming PinkSale Launch</h2>
+    <p>The SUCHI token presale will launch soon on PinkSale.finance. Join early supporters building the future of AI-powered decentralized finance.</p>
+    <div class="presale-box">
+      <h3>PinkSale.finance</h3>
+      <p>Upcoming public token launch for the SUCHI ecosystem. Stay connected for whitelist updates, launch timing, and community announcements.</p>
+      <a href="https://www.pinksale.finance/" class="btn-primary">Visit PinkSale</a>
+    </div>
+  </div>
+</section>
+
+<!-- PRODUCT SHOWCASE -->
+<section id="product-showcase">
+  <div class="section-header">
+    <div class="section-eyebrow" style="justify-content:center;">Ecosystem</div>
+    <h2 class="section-title">Product Ecosystem</h2>
+    <p class="section-sub">Advanced AI-powered products engineered for traders, investors, and decentralized financial intelligence.</p>
+  </div>
+  <div class="products-grid" style="grid-template-columns:repeat(4,1fr);">
+    <div class="product-card" data-num="01">
+      <div class="product-icon">🔍</div>
+      <h3>Neural Scanner</h3>
+      <p>Autonomous AI scanner detecting wallet movement, market anomalies, liquidity shifts, and trading opportunities.</p>
+    </div>
+    <div class="product-card" data-num="02">
+      <div class="product-icon">📡</div>
+      <h3>AI Sentiment Engine</h3>
+      <p>Tracks social media narratives, fear & greed metrics, and community momentum across crypto ecosystems.</p>
+    </div>
+    <div class="product-card" data-num="03">
+      <div class="product-icon">🐋</div>
+      <h3>Whale Monitor</h3>
+      <p>Real-time tracking for institutional activity, large wallet accumulation, and smart money flow.</p>
+    </div>
+    <div class="product-card" data-num="04">
+      <div class="product-icon">🔒</div>
+      <h3>Neural Security AI</h3>
+      <p>Advanced blockchain security analysis for scam detection, rug analysis, suspicious activity, and contract intelligence.</p>
+    </div>
+  </div>
+</section>
+
+<!-- SCANNER -->
+<section id="scanner">
+  <div class="section-header">
+    <div class="section-eyebrow" style="justify-content:center;">Live Intelligence</div>
+    <h2 class="section-title">Live Neural Scanner</h2>
+    <p class="section-sub">Real-time AI market intelligence powered by autonomous blockchain monitoring.</p>
+  </div>
+  <div class="terminal-wrap">
+    <div class="terminal-bar">
+      <div class="t-dot red"></div>
+      <div class="t-dot yellow"></div>
+      <div class="t-dot green"></div>
+      <div class="terminal-title">surchi-neural-scanner — live feed</div>
+    </div>
+    <div class="terminal">
+      <div class="terminal-line">
+        <span class="t-prefix">[AI]</span>
+        <span class="t-text">Whale Wallet Detected Buying SOL...</span>
+        <span class="t-badge bullish">BULLISH</span>
+      </div>
+      <div class="terminal-line">
+        <span class="t-prefix">[AI]</span>
+        <span class="t-text">Sentiment Spike Detected On AI Tokens...</span>
+        <span class="t-badge bullish">RISING</span>
+      </div>
+      <div class="terminal-line">
+        <span class="t-prefix">[AI]</span>
+        <span class="t-text">Neural Confidence Rising Across DeFi...</span>
+        <span class="t-badge active">ACTIVE</span>
+      </div>
+      <div class="terminal-line">
+        <span class="t-prefix">[AI]</span>
+        <span class="t-text">Large Liquidity Movement Detected...</span>
+        <span class="t-badge medium">WATCH</span>
+      </div>
+      <div class="terminal-line">
+        <span class="t-prefix">[AI]</span>
+        <span class="t-text">Autonomous Prediction Engine Active...</span>
+        <span class="t-badge active">ONLINE</span>
+      </div>
+      <div class="terminal-line">
+        <span class="t-prefix">[AI]</span>
+        <span class="t-text">Market Volatility Score: <strong style="color:white">MEDIUM</strong></span>
+        <span class="t-badge medium">MEDIUM</span>
+      </div>
+      <div class="terminal-line">
+        <span class="t-prefix">[AI]</span>
+        <span class="t-text">Solana Ecosystem Momentum: <strong style="color:white">STRONG</strong></span>
+        <span class="t-badge strong">STRONG</span>
+      </div>
+      <div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.05);">
+        <span style="font-family:'Space Mono',monospace;font-size:0.75rem;color:var(--text-muted);">▶ </span>
+        <span class="terminal-cursor"></span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HEATMAP -->
+<section id="heatmap">
+  <div class="section-header">
+    <div class="section-eyebrow" style="justify-content:center;">Analysis</div>
+    <h2 class="section-title">Neural Heatmap</h2>
+    <p class="section-sub">AI-powered market narrative analysis and sentiment intelligence.</p>
+  </div>
+  <div class="heatmap-grid">
+    <div class="heat-card">
+      <div class="heat-label">Narrative</div>
+      <h3>AI Narrative</h3>
+      <p>Bullish momentum detected across AI infrastructure assets.</p>
+      <div class="heat-bar" style="width:82%;"></div>
+    </div>
+    <div class="heat-card">
+      <div class="heat-label">Sentiment</div>
+      <h3>DeFi Sentiment</h3>
+      <p>Strong ecosystem engagement and liquidity movement observed.</p>
+      <div class="heat-bar" style="width:74%;background:linear-gradient(90deg,var(--violet),var(--magenta));"></div>
+    </div>
+    <div class="heat-card">
+      <div class="heat-label">Activity</div>
+      <h3>Meme Coin Activity</h3>
+      <p>High social velocity and speculative trading pressure detected.</p>
+      <div class="heat-bar" style="width:91%;background:linear-gradient(90deg,var(--magenta),#ff6600);"></div>
+    </div>
+    <div class="heat-card">
+      <div class="heat-label">Momentum</div>
+      <h3>Solana Momentum</h3>
+      <p>Neural systems indicate increasing transactional activity.</p>
+      <div class="heat-bar" style="width:67%;background:linear-gradient(90deg,var(--green),var(--cyan));"></div>
+    </div>
+  </div>
+</section>
+
+<!-- STATS -->
+<div class="stats-section">
+  <div class="section-eyebrow" style="justify-content:center;margin-bottom:50px;">Neural Metrics</div>
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-num">12M+</div>
+      <p>AI Signals Generated</p>
+    </div>
+    <div class="stat">
+      <div class="stat-num">950K+</div>
+      <p>Wallets Analyzed</p>
+    </div>
+    <div class="stat">
+      <div class="stat-num">3.4M+</div>
+      <p>Tokens Tracked</p>
+    </div>
+    <div class="stat">
+      <div class="stat-num">500K+</div>
+      <p>Community Nodes</p>
+    </div>
+  </div>
+</div>
+
+<!-- TOKEN ALLOCATION -->
+<section id="allocation">
+  <div class="allocation-inner">
+    <div class="allocation-text">
+      <div class="section-eyebrow">Tokenomics</div>
+      <h2>Token<br>Allocation</h2>
+      <div class="supply">Total Supply: 19,897,905 $SURCHI</div>
+
+      <div class="alloc-item">
+        <div class="alloc-swatch" style="background:var(--cyan);"></div>
+        <div class="alloc-label">Presale</div>
+        <div class="alloc-pct">64%</div>
+      </div>
+      <div class="alloc-item">
+        <div class="alloc-swatch" style="background:var(--violet);"></div>
+        <div class="alloc-label">Liquidity</div>
+        <div class="alloc-pct">30%</div>
+      </div>
+      <div class="alloc-item">
+        <div class="alloc-swatch" style="background:var(--magenta);"></div>
+        <div class="alloc-label">Development / DEX Listing / Marketing & Partnerships</div>
+        <div class="alloc-pct">6%</div>
+      </div>
+    </div>
+
+    <div class="donut-wrap">
+      <svg class="donut-svg" viewBox="0 0 200 200">
+        <circle cx="100" cy="100" r="80" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="28"/>
+        <!-- 64% = 502.65 of 785.4 -->
+        <circle cx="100" cy="100" r="80" fill="none" stroke="#00f7ff" stroke-width="28"
+          stroke-dasharray="502.65 785.4" stroke-dashoffset="0"
+          style="filter:drop-shadow(0 0 8px #00f7ff88)"/>
+        <!-- 30% = 235.62 -->
+        <circle cx="100" cy="100" r="80" fill="none" stroke="#7b00ff" stroke-width="28"
+          stroke-dasharray="235.62 785.4" stroke-dashoffset="-502.65"
+          style="filter:drop-shadow(0 0 8px #7b00ff66)"/>
+        <!-- 6% = 47.12 -->
+        <circle cx="100" cy="100" r="80" fill="none" stroke="#ff00aa" stroke-width="28"
+          stroke-dasharray="47.12 785.4" stroke-dashoffset="-738.27"
+          style="filter:drop-shadow(0 0 8px #ff00aa66)"/>
+      </svg>
+      <div class="donut-center">
+        <div class="donut-center-label">Total Supply</div>
+        <div class="donut-center-val">19.9M</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ROADMAP -->
+<section id="roadmap">
+  <div class="section-header">
+    <div class="section-eyebrow" style="justify-content:center;">Vision</div>
+    <h2 class="section-title">Roadmap</h2>
+  </div>
+  <div class="roadmap">
+    <div class="phase">
+      <div class="phase-num">01</div>
+      <h3>Phase 1 — Neural Genesis</h3>
+      <ul>
+        <li>Website Launch</li>
+        <li>Community Expansion</li>
+        <li>SUCHI Deployment</li>
+        <li>Brand Infrastructure</li>
+      </ul>
+    </div>
+    <div class="phase">
+      <div class="phase-num">02</div>
+      <h3>Phase 2 — AI Intelligence</h3>
+      <ul>
+        <li>Neural Dashboard</li>
+        <li>Signal Systems</li>
+        <li>Wallet Scanner</li>
+        <li>Trading Intelligence</li>
+      </ul>
+    </div>
+    <div class="phase">
+      <div class="phase-num">03</div>
+      <h3>Phase 3 — Autonomous Agents</h3>
+      <ul>
+        <li>AI Trading Bots</li>
+        <li>Marketplace Launch</li>
+        <li>Developer APIs</li>
+        <li>Multi-chain Expansion</li>
+      </ul>
+    </div>
+    <div class="phase">
+      <div class="phase-num">04</div>
+      <h3>Phase 4 — Neural Economy</h3>
+      <ul>
+        <li>Governance Layer</li>
+        <li>Revenue Sharing</li>
+        <li>Enterprise AI</li>
+        <li>Global Scaling</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- SIGN IN -->
+<section id="signin">
+  <div class="section-header">
+    <div class="section-eyebrow" style="justify-content:center;">Access</div>
+    <h2 class="section-title">Email Sign In</h2>
+  </div>
+  <div class="signin-wrap">
+    <div class="signin-card">
+      <h3>Join SURCHI AI</h3>
+      <label class="field-label">Email Address</label>
+      <input type="email" class="email-input" placeholder="you@example.com" required>
+      <button type="button" class="btn-submit">Connect Email →</button>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer id="contact">
+  <div class="footer-big-text">SURCHI</div>
+  <div class="footer-top">
+    <div class="footer-brand">
+      <h2>SURCHI AI</h2>
+      <p>Building the neural operating system for decentralized finance.</p>
+    </div>
+    <div class="footer-links-grid">
+      <a href="https://surchi.xyz">Website</a>
+      <a href="https://github.com/surchiai/Official-white-paper">Whitepaper</a>
+      <a href="https://x.com/surchicoin">X / Twitter</a>
+      <a href="https://discord.gg/DtFYCzCUk">Discord</a>
+      <a href="https://www.instagram.com/surchiai?igsh=YXlhY2VkZ2lxam9w">Instagram</a>
+      <a href="https://www.facebook.com/profile.php?id=61556383735432">Facebook</a>
+      <a href="https://whatsapp.com/channel/0029VbCM41CISTkMkuao4Y0Z">WhatsApp</a>
+      <a href="https://github.com/surchiai/Docs-intro-readmore">Docs</a>
+      <a href="https://github.com/surchiai/Official-white-paper">Official Whitepaper</a>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <div class="footer-bottom-copy">© 2026 SURCHI AI. All Rights Reserved.</div>
+    <div style="font-family:'Space Mono',monospace;font-size:0.6rem;letter-spacing:0.2em;color:var(--text-muted);">NEURAL SYSTEMS ONLINE ●</div>
+  </div>
+</footer>
+
+<!-- WHITEPAPER FLOAT -->
+<a href="https://github.com/surchiai/Official-white-paper" class="ai-orb">WHITEPAPER</a>
+
+<!-- 3D CANVAS -->
+<canvas id="bg-canvas"></canvas>
+
+<script>
+// CURSOR
+const cursor = document.getElementById('cursor');
+const ring = document.getElementById('cursorRing');
+let mx = 0, my = 0, rx = 0, ry = 0;
+
+document.addEventListener('mousemove', e => {
+  mx = e.clientX; my = e.clientY;
+  cursor.style.left = mx - 6 + 'px';
+  cursor.style.top = my - 6 + 'px';
+});
+
+function animRing() {
+  rx += (mx - rx) * 0.12;
+  ry += (my - ry) *.12;
+  ring.style.left = rx - 20 + 'px';
+  ring.style.top = ry - 20 + 'px';
+  requestAnimationFrame(animRing);
+}
+animRing();
+
+document.querySelectorAll('a,button,input').forEach(el => {
+  el.addEventListener('mouseenter', () => {
+    cursor.style.transform = 'scale(2.5)';
+    ring.style.transform = 'scale(1.5)';
+    ring.style.borderColor = 'rgba(0,247,255,0.8)';
+  });
+  el.addEventListener('mouseleave', () => {
+    cursor.style.transform = 'scale(1)';
+    ring.style.transform = 'scale(1)';
+    ring.style.borderColor = 'rgba(0,247,255,0.4)';
+  });
+});
+
+// LOADER
+setTimeout(() => {
+  const loader = document.getElementById('loader');
+  loader.style.transition = 'opacity 0.8s ease';
+  loader.style.opacity = '0';
+  setTimeout(() => loader.style.display = 'none', 800);
+}, 4000);
+
+// THREE.JS BACKGROUND
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('bg-canvas'), alpha: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+// Particle field
+const particleCount = 1200;
+const positions = new Float32Array(particleCount * 3);
+for (let i = 0; i < particleCount * 3; i++) {
+  positions[i] = (Math.random() - 0.5) * 200;
+}
+
+const pgeo = new THREE.BufferGeometry();
+pgeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+const pmat = new THREE.PointsMaterial({
+  color: 0x00f7ff,
+  size: 0.15,
+  transparent: true,
+  opacity: 0.4,
+  sizeAttenuation: true
+});
+
+const particles = new THREE.Points(pgeo, pmat);
+scene.add(particles);
+
+// Wireframe torus (smaller, more refined)
+const torusGeo = new THREE.TorusKnotGeometry(8, 2, 120, 16);
+const torusMat = new THREE.MeshBasicMaterial({
+  color: 0x00f7ff,
+  wireframe: true,
+  transparent: true,
+  opacity: 0.06
+});
+const torus = new THREE.Mesh(torusGeo, torusMat);
+torus.position.set(18, -4, -20);
+scene.add(torus);
+
+camera.position.z = 50;
+
+let scrollY = 0;
+window.addEventListener('scroll', () => { scrollY = window.scrollY; });
+
+function animate() {
+  requestAnimationFrame(animate);
+  particles.rotation.y += 0.0004;
+  particles.rotation.x += 0.0001;
+  torus.rotation.x += 0.003;
+  torus.rotation.y += 0.005;
+  camera.position.y = -scrollY * 0.01;
+  renderer.render(scene, camera);
+}
+animate();
+
+window.addEventListener('resize', () => {
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+});
+</script>
+
+</body>
+</html>
