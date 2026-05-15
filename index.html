@@ -1,145 +1,1149 @@
-<!DOCTYPE html><html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Pax Funds</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-black text-white font-sans overflow-x-hidden">  <!-- NAVBAR -->  <header class="fixed top-0 left-0 right-0 z-50 backdrop-blur-xl bg-black/40 border-b border-white/10">
-    <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center font-bold text-lg shadow-lg shadow-cyan-500/30">
-          P
-        </div><div>
-      <h1 class="font-bold text-xl tracking-wide">Pax Funds</h1>
-      <p class="text-xs text-gray-400">Smart Financial Growth</p>
+import { useState, useEffect, useCallback, createContext, useContext } from "react";
+
+/* ─── DESIGN TOKENS (mirrors SURCHI AI) ─── */
+const T = {
+  cyan:    "#00f7ff",
+  violet:  "#7b00ff",
+  magenta: "#ff00aa",
+  green:   "#00ff99",
+  gold:    "#ffbe00",
+  bg:      "#03030a",
+  surface: "rgba(255,255,255,0.02)",
+  border:  "rgba(255,255,255,0.07)",
+  muted:   "#5a5a72",
+  dim:     "#9090aa",
+};
+
+/* ─── MOCK AUTH BACKEND (localStorage-based, production-ready structure) ─── */
+const DB_KEY = "surchi_users_db";
+const SESSION_KEY = "surchi_session";
+
+function getDB() {
+  try { return JSON.parse(localStorage.getItem(DB_KEY) || "{}"); }
+  catch { return {}; }
+}
+function saveDB(db) { localStorage.setItem(DB_KEY, JSON.stringify(db)); }
+
+async function hashPassword(pw) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(pw + "surchi_salt_2026"));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,"0")).join("");
+}
+
+function generateToken() {
+  return crypto.getRandomValues(new Uint8Array(32)).reduce((s,b)=>s+b.toString(16).padStart(2,"0"),"");
+}
+
+async function apiSignUp({ email, password, username }) {
+  await delay(900);
+  const db = getDB();
+  if (db[email]) throw new Error("An account with this email already exists.");
+  const hash = await hashPassword(password);
+  const uid = generateToken().slice(0,16);
+  db[email] = {
+    uid, email, username,
+    passwordHash: hash,
+    verified: false,
+    verifyToken: generateToken().slice(0,8).toUpperCase(),
+    createdAt: Date.now(),
+    resetToken: null,
+    resetExpiry: null,
+    avatar: null,
+    bio: "",
+    walletAddress: "",
+  };
+  saveDB(db);
+  return { uid, email, username, verified: false };
+}
+
+async function apiLogin({ email, password, remember }) {
+  await delay(800);
+  const db = getDB();
+  const user = db[email];
+  if (!user) throw new Error("No account found with this email.");
+  const hash = await hashPassword(password);
+  if (hash !== user.passwordHash) throw new Error("Incorrect password. Please try again.");
+  const token = generateToken();
+  const session = {
+    token, uid: user.uid, email: user.email,
+    username: user.username, verified: user.verified,
+    expires: remember ? Date.now() + 30*24*60*60*1000 : Date.now() + 24*60*60*1000,
+    avatar: user.avatar, bio: user.bio, walletAddress: user.walletAddress,
+  };
+  localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  return session;
+}
+
+async function apiLogout() {
+  await delay(300);
+  localStorage.removeItem(SESSION_KEY);
+}
+
+async function apiVerifyEmail({ email, code }) {
+  await delay(600);
+  const db = getDB();
+  const user = db[email];
+  if (!user) throw new Error("User not found.");
+  if (user.verifyToken !== code.toUpperCase()) throw new Error("Invalid verification code.");
+  db[email].verified = true;
+  db[email].verifyToken = null;
+  saveDB(db);
+  const raw = localStorage.getItem(SESSION_KEY);
+  if (raw) {
+    const s = JSON.parse(raw);
+    s.verified = true;
+    localStorage.setItem(SESSION_KEY, JSON.stringify(s));
+  }
+  return true;
+}
+
+async function apiForgotPassword({ email }) {
+  await delay(700);
+  const db = getDB();
+  if (!db[email]) throw new Error("No account found with this email.");
+  db[email].resetToken = generateToken().slice(0,8).toUpperCase();
+  db[email].resetExpiry = Date.now() + 15*60*1000;
+  saveDB(db);
+  return db[email].resetToken; // in prod this goes via email
+}
+
+async function apiResetPassword({ email, code, newPassword }) {
+  await delay(800);
+  const db = getDB();
+  const user = db[email];
+  if (!user) throw new Error("User not found.");
+  if (!user.resetToken || user.resetToken !== code.toUpperCase()) throw new Error("Invalid reset code.");
+  if (Date.now() > user.resetExpiry) throw new Error("Reset code has expired. Please request a new one.");
+  db[email].passwordHash = await hashPassword(newPassword);
+  db[email].resetToken = null;
+  db[email].resetExpiry = null;
+  saveDB(db);
+  return true;
+}
+
+async function apiUpdateProfile({ email, username, bio, walletAddress, avatar }) {
+  await delay(600);
+  const db = getDB();
+  if (!db[email]) throw new Error("User not found.");
+  db[email] = { ...db[email], username, bio, walletAddress, avatar };
+  saveDB(db);
+  const raw = localStorage.getItem(SESSION_KEY);
+  if (raw) {
+    const s = JSON.parse(raw);
+    s.username = username; s.bio = bio; s.walletAddress = walletAddress; s.avatar = avatar;
+    localStorage.setItem(SESSION_KEY, JSON.stringify(s));
+  }
+  return db[email];
+}
+
+async function apiChangePassword({ email, currentPassword, newPassword }) {
+  await delay(800);
+  const db = getDB();
+  const user = db[email];
+  if (!user) throw new Error("User not found.");
+  const hash = await hashPassword(currentPassword);
+  if (hash !== user.passwordHash) throw new Error("Current password is incorrect.");
+  db[email].passwordHash = await hashPassword(newPassword);
+  saveDB(db);
+  return true;
+}
+
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function getSession() {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
+    const s = JSON.parse(raw);
+    if (Date.now() > s.expires) { localStorage.removeItem(SESSION_KEY); return null; }
+    return s;
+  } catch { return null; }
+}
+
+/* ─── AUTH CONTEXT ─── */
+const AuthCtx = createContext(null);
+function useAuth() { return useContext(AuthCtx); }
+
+/* ─── GLOBAL STYLES ─── */
+const GLOBAL_CSS = `
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Bebas+Neue&family=Syne:wght@400;600;700;800&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Syne', sans-serif; background: #03030a; color: white; }
+
+  @keyframes blink    { 50% { opacity: 0; } }
+  @keyframes fadeUp   { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+  @keyframes fadeIn   { from { opacity:0; } to { opacity:1; } }
+  @keyframes pulse    { 0%,100% { box-shadow:0 0 0 0 rgba(0,247,255,.6); } 50% { box-shadow:0 0 0 7px rgba(0,247,255,0); } }
+  @keyframes scanLine { 0%,100% { transform:translateY(-100%); } 50% { transform:translateY(400%); } }
+  @keyframes spin     { 100% { transform:rotate(360deg); } }
+  @keyframes shimmer  { 0% { background-position:-200% 0; } 100% { background-position:200% 0; } }
+  @keyframes glitch1  { 0%,100%{clip-path:inset(0 0 100% 0)} 10%{clip-path:inset(20% 0 60% 0)} 20%{clip-path:inset(50% 0 30% 0)} 30%{clip-path:inset(80% 0 5% 0)} 40%{clip-path:inset(0 0 100% 0)} }
+  @keyframes toastIn  { from{transform:translateX(120%);opacity:0} to{transform:translateX(0);opacity:1} }
+  @keyframes toastOut { from{transform:translateX(0);opacity:1} to{transform:translateX(120%);opacity:0} }
+  @keyframes orb      { 100% { transform:rotate(360deg); } }
+  @keyframes hexDrift { 0%{background-position:0 0} 100%{background-position:56px 100px} }
+  @keyframes blobFloat{ 0%,100%{transform:translate(0,0) scale(1)} 33%{transform:translate(30px,-20px) scale(1.04)} 66%{transform:translate(-15px,25px) scale(.97)} }
+  @keyframes dash     { to { stroke-dashoffset: 0; } }
+
+  .surchi-auth-root {
+    min-height: 100vh;
+    background: #03030a;
+    font-family: 'Syne', sans-serif;
+    position: relative;
+    overflow: hidden;
+  }
+  .hex-bg {
+    position: absolute; inset: 0; pointer-events: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='100'%3E%3Cpath d='M28 0 L56 16 L56 50 L28 66 L0 50 L0 16 Z' fill='none' stroke='rgba(0,247,255,0.04)' stroke-width='0.5'/%3E%3Cpath d='M28 66 L56 82 L56 100' fill='none' stroke='rgba(0,247,255,0.04)' stroke-width='0.5'/%3E%3Cpath d='M0 82 L28 66' fill='none' stroke='rgba(0,247,255,0.04)' stroke-width='0.5'/%3E%3C/svg%3E");
+    background-size: 56px 100px;
+    animation: hexDrift 40s linear infinite;
+    opacity: .7;
+  }
+  .blob { position:absolute; border-radius:50%; filter:blur(100px); pointer-events:none; }
+
+  .mono { font-family: 'Space Mono', monospace; }
+  .bebas { font-family: 'Bebas Neue', sans-serif; }
+
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0 100px #03030a inset !important;
+    -webkit-text-fill-color: white !important;
+    caret-color: white;
+  }
+`;
+
+/* ─── TINY COMPONENTS ─── */
+
+function Spinner({ size = 18, color = T.cyan }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" style={{ animation:"spin .8s linear infinite", display:"block" }}>
+      <circle cx="12" cy="12" r="10" fill="none" stroke={color} strokeWidth="2" strokeDasharray="30 60" />
+    </svg>
+  );
+}
+
+function Toast({ toasts }) {
+  return (
+    <div style={{ position:"fixed", top:20, right:20, zIndex:9999, display:"flex", flexDirection:"column", gap:10 }}>
+      {toasts.map(t => (
+        <div key={t.id} style={{
+          background: t.type==="error" ? "rgba(255,0,80,.12)" : "rgba(0,255,153,.12)",
+          border: `1px solid ${t.type==="error" ? "rgba(255,0,80,.3)" : "rgba(0,255,153,.3)"}`,
+          color: t.type==="error" ? "#ff0050" : T.green,
+          fontFamily:"Space Mono,monospace", fontSize:".68rem", letterSpacing:".15em",
+          padding:"12px 18px", borderRadius:2, maxWidth:340,
+          animation: t.leaving ? "toastOut .3s ease forwards" : "toastIn .3s ease forwards",
+          display:"flex", alignItems:"center", gap:10,
+        }}>
+          <span>{t.type==="error" ? "✕" : "✓"}</span>
+          <span>{t.msg}</span>
+        </div>
+      ))}
     </div>
-  </div>
+  );
+}
 
-  <nav class="hidden md:flex items-center gap-8 text-sm text-gray-300">
-    <a href="#" class="hover:text-white transition">Home</a>
-    <a href="#" class="hover:text-white transition">Features</a>
-    <a href="#" class="hover:text-white transition">Plans</a>
-    <a href="#" class="hover:text-white transition">Dashboard</a>
-  </nav>
+function useToast() {
+  const [toasts, setToasts] = useState([]);
+  const push = useCallback((msg, type="success") => {
+    const id = Date.now();
+    setToasts(p => [...p, { id, msg, type }]);
+    setTimeout(() => setToasts(p => p.map(t => t.id===id ? {...t,leaving:true} : t)), 2700);
+    setTimeout(() => setToasts(p => p.filter(t => t.id!==id)), 3000);
+  }, []);
+  return { toasts, push };
+}
 
-  <div class="flex items-center gap-3">
-    <button class="px-5 py-2 rounded-xl border border-white/20 hover:bg-white/10 transition">
-      Login
+function Field({ label, type="text", value, onChange, placeholder, autoFocus, hint, error }) {
+  const [show, setShow] = useState(false);
+  const isPass = type === "password";
+  return (
+    <div style={{ marginBottom:20 }}>
+      <label style={{ fontFamily:"Space Mono,monospace", fontSize:".6rem", letterSpacing:".25em", textTransform:"uppercase", color:T.muted, display:"block", marginBottom:9 }}>{label}</label>
+      <div style={{ position:"relative" }}>
+        <input
+          type={isPass && show ? "text" : type}
+          value={value}
+          onChange={e=>onChange(e.target.value)}
+          placeholder={placeholder}
+          autoFocus={autoFocus}
+          style={{
+            width:"100%", padding:"14px 18px", paddingRight: isPass ? 48 : 18,
+            background:"rgba(255,255,255,0.03)", border:`1px solid ${error ? "rgba(255,0,80,.4)" : T.border}`,
+            borderRadius:2, color:"white", fontFamily:"Space Mono,monospace", fontSize:".82rem",
+            outline:"none", transition:"border-color .3s",
+          }}
+          onFocus={e => e.target.style.borderColor = error ? "rgba(255,0,80,.6)" : "rgba(0,247,255,.4)"}
+          onBlur={e => e.target.style.borderColor = error ? "rgba(255,0,80,.4)" : T.border}
+        />
+        {isPass && (
+          <button type="button" onClick={()=>setShow(s=>!s)} style={{
+            position:"absolute", right:14, top:"50%", transform:"translateY(-50%)",
+            background:"none", border:"none", color:T.muted, cursor:"pointer", padding:4, display:"flex",
+          }}>
+            {show
+              ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+              : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            }
+          </button>
+        )}
+      </div>
+      {hint && !error && <div style={{ fontFamily:"Space Mono,monospace", fontSize:".58rem", color:T.muted, marginTop:7, letterSpacing:".1em" }}>{hint}</div>}
+      {error && <div style={{ fontFamily:"Space Mono,monospace", fontSize:".6rem", color:"#ff0050", marginTop:7, letterSpacing:".1em" }}>✕ {error}</div>}
+    </div>
+  );
+}
+
+function Btn({ children, onClick, loading, variant="primary", style: ext={}, type="button", disabled }) {
+  const base = {
+    width:"100%", padding:"15px", border:"none",
+    fontFamily:"Space Mono,monospace", fontSize:".72rem", letterSpacing:".2em",
+    textTransform:"uppercase", fontWeight:700, cursor: (loading||disabled) ? "not-allowed" : "pointer",
+    borderRadius:2, transition:"all .3s", display:"flex", alignItems:"center", justifyContent:"center", gap:10,
+    opacity: (loading||disabled) ? .6 : 1,
+  };
+  const variants = {
+    primary: { background:"white", color:"#000" },
+    cyan: { background:"rgba(0,247,255,.08)", color:T.cyan, border:`1px solid rgba(0,247,255,.25)` },
+    ghost: { background:"transparent", color:T.dim, border:`1px solid ${T.border}` },
+    green: { background:"rgba(0,255,153,.08)", color:T.green, border:`1px solid rgba(0,255,153,.25)` },
+    danger: { background:"rgba(255,0,80,.08)", color:"#ff0050", border:`1px solid rgba(255,0,80,.25)` },
+  };
+  return (
+    <button type={type} onClick={onClick} disabled={loading||disabled} style={{ ...base, ...variants[variant], ...ext }}>
+      {loading ? <Spinner size={16} color={variant==="primary"?"#000":T.cyan} /> : children}
     </button>
+  );
+}
 
-    <button class="px-5 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:scale-105 transition shadow-lg shadow-cyan-500/30">
-      Get Started
+function Card({ children, style: ext={} }) {
+  return (
+    <div style={{
+      background:"rgba(255,255,255,0.025)", border:`1px solid ${T.border}`,
+      padding:"44px 40px", position:"relative", overflow:"hidden",
+      animation:"fadeUp .5s ease both", ...ext,
+    }}>
+      {children}
+    </div>
+  );
+}
+
+function Divider({ label }) {
+  return (
+    <div style={{ display:"flex", alignItems:"center", gap:14, margin:"24px 0" }}>
+      <div style={{ flex:1, height:1, background:T.border }} />
+      <span style={{ fontFamily:"Space Mono,monospace", fontSize:".6rem", color:T.muted, letterSpacing:".2em", textTransform:"uppercase" }}>{label}</span>
+      <div style={{ flex:1, height:1, background:T.border }} />
+    </div>
+  );
+}
+
+function Logo({ onClick }) {
+  return (
+    <button onClick={onClick} style={{ background:"none", border:"none", cursor:"pointer", display:"flex", alignItems:"center", gap:10, padding:0 }}>
+      <div style={{
+        width:34, height:34, borderRadius:"50%",
+        border:`1px solid rgba(0,247,255,.35)`,
+        background:"rgba(0,247,255,.06)",
+        display:"flex", alignItems:"center", justifyContent:"center",
+        fontFamily:"Bebas Neue,sans-serif", fontSize:"1rem", color:T.cyan, letterSpacing:".05em",
+      }}>S</div>
+      <span style={{ fontFamily:"Bebas Neue,sans-serif", fontSize:"1.3rem", letterSpacing:".2em", color:"white" }}>SURCHI AI</span>
+      <div style={{ width:6, height:6, background:T.cyan, borderRadius:"50%", animation:"pulse 2s ease-in-out infinite" }} />
     </button>
-  </div>
-</div>
+  );
+}
 
-  </header>  <!-- HERO -->  <section class="relative pt-40 pb-24 px-6">
-    <div class="max-w-7xl mx-auto grid lg:grid-cols-2 gap-16 items-center"><div>
-    <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-cyan-500/30 bg-cyan-500/10 text-cyan-300 text-sm mb-6">
-      AI-Powered Wealth Platform
+function PasswordStrength({ password }) {
+  const strength = (() => {
+    if (!password) return 0;
+    let s = 0;
+    if (password.length >= 8) s++;
+    if (/[A-Z]/.test(password)) s++;
+    if (/[0-9]/.test(password)) s++;
+    if (/[^A-Za-z0-9]/.test(password)) s++;
+    return s;
+  })();
+  const labels = ["","Weak","Fair","Strong","Neural-grade"];
+  const colors = ["","#ff0050", T.gold, T.cyan, T.green];
+  if (!password) return null;
+  return (
+    <div style={{ marginTop:-12, marginBottom:20 }}>
+      <div style={{ display:"flex", gap:4, marginBottom:5 }}>
+        {[1,2,3,4].map(i => (
+          <div key={i} style={{
+            flex:1, height:2, borderRadius:1,
+            background: i<=strength ? colors[strength] : T.border,
+            transition:"all .3s",
+          }} />
+        ))}
+      </div>
+      <div style={{ fontFamily:"Space Mono,monospace", fontSize:".58rem", color:colors[strength], letterSpacing:".15em" }}>
+        {labels[strength]}
+      </div>
     </div>
+  );
+}
 
-    <h1 class="text-5xl md:text-7xl font-black leading-tight mb-6">
-      Grow Faster With <span class="bg-gradient-to-r from-cyan-400 to-blue-500 text-transparent bg-clip-text">Pax Funds</span>
-    </h1>
+/* ─── SCREENS ─── */
 
-    <p class="text-lg text-gray-400 leading-relaxed max-w-xl mb-10">
-      Advanced analytics, secure digital finance tools, portfolio tracking, and automated growth insights.
-    </p>
+function SignUpScreen({ onSwitch, onSuccess, toast }) {
+  const [form, setForm] = useState({ username:"", email:"", password:"", confirm:"" });
+  const [errors, setErrors] = useState({});
+  const [loading, setLoading] = useState(false);
+  const [agreed, setAgreed] = useState(false);
 
-    <div class="flex flex-wrap gap-4">
-      <button class="px-8 py-4 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 font-semibold hover:scale-105 transition shadow-2xl shadow-cyan-500/30">
-        Create Account
-      </button>
+  const set = k => v => setForm(f => ({ ...f, [k]:v }));
 
-      <button class="px-8 py-4 rounded-2xl border border-white/20 hover:bg-white/10 transition">
-        Explore Dashboard
-      </button>
+  const validate = () => {
+    const e = {};
+    if (!form.username.trim() || form.username.length < 3) e.username = "Min 3 characters";
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = "Valid email required";
+    if (form.password.length < 8) e.password = "Min 8 characters";
+    if (form.password !== form.confirm) e.confirm = "Passwords do not match";
+    if (!agreed) e.terms = "You must agree to continue";
+    return e;
+  };
+
+  const submit = async () => {
+    const e = validate();
+    if (Object.keys(e).length) { setErrors(e); return; }
+    setErrors({}); setLoading(true);
+    try {
+      await apiSignUp({ email: form.email, password: form.password, username: form.username });
+      toast("Account created! Check your inbox for your verification code.", "success");
+      onSuccess({ email: form.email, username: form.username });
+    } catch (err) {
+      toast(err.message, "error");
+    } finally { setLoading(false); }
+  };
+
+  return (
+    <Card>
+      <div style={{ fontFamily:"Space Mono,monospace", fontSize:".6rem", letterSpacing:".3em", textTransform:"uppercase", color:T.cyan, marginBottom:8, display:"flex", alignItems:"center", gap:8 }}>
+        <div style={{ width:5, height:5, background:T.cyan, borderRadius:"50%", animation:"blink 1s infinite" }} />
+        New Account
+      </div>
+      <h2 style={{ fontFamily:"Bebas Neue,sans-serif", fontSize:"2.6rem", letterSpacing:".08em", marginBottom:32, lineHeight:1 }}>
+        Join SURCHI AI
+      </h2>
+
+      <Field label="Username" value={form.username} onChange={set("username")} placeholder="neural_trader" autoFocus error={errors.username} />
+      <Field label="Email Address" type="email" value={form.email} onChange={set("email")} placeholder="you@domain.com" error={errors.email} />
+      <Field label="Password" type="password" value={form.password} onChange={set("password")} placeholder="••••••••••••" error={errors.password} />
+      <PasswordStrength password={form.password} />
+      <Field label="Confirm Password" type="password" value={form.confirm} onChange={set("confirm")} placeholder="••••••••••••" error={errors.confirm} />
+
+      <label style={{ display:"flex", alignItems:"flex-start", gap:12, marginBottom:28, cursor:"pointer" }}>
+        <div
+          onClick={() => setAgreed(a => !a)}
+          style={{
+            width:18, height:18, border:`1px solid ${errors.terms ? "rgba(255,0,80,.4)" : T.border}`,
+            background: agreed ? T.cyan : "transparent",
+            flexShrink:0, marginTop:1, display:"flex", alignItems:"center", justifyContent:"center",
+            cursor:"pointer", transition:"all .2s",
+          }}
+        >
+          {agreed && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>}
+        </div>
+        <span style={{ fontFamily:"Space Mono,monospace", fontSize:".62rem", letterSpacing:".1em", color:T.dim, lineHeight:1.7 }}>
+          I agree to the Terms of Service, Privacy Policy, and Neural Intelligence protocols of SURCHI AI
+        </span>
+      </label>
+      {errors.terms && <div style={{ fontFamily:"Space Mono,monospace", fontSize:".6rem", color:"#ff0050", marginTop:-20, marginBottom:20, letterSpacing:".1em" }}>✕ {errors.terms}</div>}
+
+      <Btn onClick={submit} loading={loading}>Create Neural Account →</Btn>
+
+      <Divider label="Already connected?" />
+      <Btn onClick={() => onSwitch("login")} variant="ghost">Sign In Instead</Btn>
+    </Card>
+  );
+}
+
+function LoginScreen({ onSwitch, onSuccess, toast }) {
+  const [form, setForm] = useState({ email:"", password:"", remember:true });
+  const [loading, setLoading] = useState(false);
+  const [attempts, setAttempts] = useState(0);
+  const set = k => v => setForm(f => ({ ...f, [k]:v }));
+
+  const submit = async () => {
+    if (attempts >= 5) { toast("Too many attempts. Please wait.", "error"); return; }
+    setLoading(true);
+    try {
+      const session = await apiLogin({ email: form.email, password: form.password, remember: form.remember });
+      toast("Neural systems online. Welcome back.", "success");
+      onSuccess(session);
+    } catch (err) {
+      setAttempts(a => a+1);
+      toast(err.message, "error");
+    } finally { setLoading(false); }
+  };
+
+  return (
+    <Card>
+      <div style={{ fontFamily:"Space Mono,monospace", fontSize:".6rem", letterSpacing:".3em", textTransform:"uppercase", color:T.cyan, marginBottom:8, display:"flex", alignItems:"center", gap:8 }}>
+        <div style={{ width:5, height:5, background:T.cyan, borderRadius:"50%", animation:"blink 1s infinite" }} />
+        Secure Access
+      </div>
+      <h2 style={{ fontFamily:"Bebas Neue,sans-serif", fontSize:"2.6rem", letterSpacing:".08em", marginBottom:32, lineHeight:1 }}>
+        Neural Sign In
+      </h2>
+
+      <Field label="Email Address" type="email" value={form.email} onChange={set("email")} placeholder="you@domain.com" autoFocus />
+      <Field label="Password" type="password" value={form.password} onChange={set("password")} placeholder="••••••••••••" />
+
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:28 }}>
+        <label style={{ display:"flex", alignItems:"center", gap:10, cursor:"pointer" }}>
+          <div
+            onClick={() => set("remember")(!form.remember)}
+            style={{
+              width:18, height:18, border:`1px solid ${T.border}`,
+              background: form.remember ? T.cyan : "transparent",
+              display:"flex", alignItems:"center", justifyContent:"center",
+              cursor:"pointer", transition:"all .2s",
+            }}
+          >
+            {form.remember && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>}
+          </div>
+          <span style={{ fontFamily:"Space Mono,monospace", fontSize:".62rem", color:T.dim, letterSpacing:".1em" }}>Stay connected</span>
+        </label>
+        <button onClick={() => onSwitch("forgot")} style={{ background:"none", border:"none", fontFamily:"Space Mono,monospace", fontSize:".62rem", color:T.cyan, cursor:"pointer", letterSpacing:".1em", textDecoration:"underline", textDecorationStyle:"dotted" }}>
+          Forgot password?
+        </button>
+      </div>
+
+      {attempts >= 3 && (
+        <div style={{ background:"rgba(255,190,0,.06)", border:"1px solid rgba(255,190,0,.2)", padding:"12px 16px", borderRadius:2, marginBottom:20, fontFamily:"Space Mono,monospace", fontSize:".62rem", color:T.gold, letterSpacing:".1em" }}>
+          ⚠ {5 - attempts} attempt{5-attempts!==1?"s":""} remaining before lockout
+        </div>
+      )}
+
+      <Btn onClick={submit} loading={loading}>Access Neural Network →</Btn>
+
+      <Divider label="New to SURCHI?" />
+      <Btn onClick={() => onSwitch("signup")} variant="cyan">Create Account</Btn>
+    </Card>
+  );
+}
+
+function VerifyScreen({ email, onSuccess, onBack, toast }) {
+  const [code, setCode] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [resent, setResent] = useState(false);
+  const [devCode, setDevCode] = useState(null);
+
+  useEffect(() => {
+    const db = getDB();
+    if (db[email]) setDevCode(db[email].verifyToken);
+  }, [email]);
+
+  const submit = async () => {
+    setLoading(true);
+    try {
+      await apiVerifyEmail({ email, code });
+      toast("Email verified. Neural access granted!", "success");
+      onSuccess();
+    } catch (err) { toast(err.message, "error"); }
+    finally { setLoading(false); }
+  };
+
+  const resend = async () => {
+    setResending(true);
+    await delay(600);
+    const db = getDB();
+    if (db[email]) {
+      db[email].verifyToken = generateToken().slice(0,8).toUpperCase();
+      saveDB(db);
+      setDevCode(db[email].verifyToken);
+    }
+    setResent(true); setResending(false);
+    toast("New verification code generated.", "success");
+  };
+
+  return (
+    <Card>
+      <div style={{ textAlign:"center", marginBottom:32 }}>
+        <div style={{
+          width:64, height:64, borderRadius:"50%",
+          border:`1px solid rgba(0,247,255,.25)`,
+          background:"rgba(0,247,255,.06)",
+          display:"flex", alignItems:"center", justifyContent:"center",
+          margin:"0 auto 24px",
+        }}>
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={T.cyan} strokeWidth="1.5">
+            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>
+          </svg>
+        </div>
+        <h2 style={{ fontFamily:"Bebas Neue,sans-serif", fontSize:"2.2rem", letterSpacing:".08em", marginBottom:12 }}>Verify Your Email</h2>
+        <p style={{ fontFamily:"Space Mono,monospace", fontSize:".7rem", color:T.dim, lineHeight:1.8, letterSpacing:".08em" }}>
+          A verification code was sent to<br />
+          <span style={{ color:T.cyan }}>{email}</span>
+        </p>
+      </div>
+
+      {devCode && (
+        <div style={{ background:"rgba(123,0,255,.08)", border:"1px solid rgba(123,0,255,.2)", padding:"12px 16px", marginBottom:24, borderRadius:2 }}>
+          <div style={{ fontFamily:"Space Mono,monospace", fontSize:".58rem", color:T.muted, letterSpacing:".2em", marginBottom:4 }}>DEV MODE — Your code:</div>
+          <div style={{ fontFamily:"Bebas Neue,sans-serif", fontSize:"1.8rem", letterSpacing:".25em", color:T.violet }}>{devCode}</div>
+        </div>
+      )}
+
+      <Field label="Verification Code" value={code} onChange={setCode} placeholder="XXXXXXXX" hint="Enter the 8-character code from your email" />
+
+      <Btn onClick={submit} loading={loading} style={{ marginBottom:14 }}>Verify Neural Identity →</Btn>
+      <Btn onClick={resend} loading={resending} variant="ghost">
+        {resent ? "✓ Code Resent" : "Resend Code"}
+      </Btn>
+
+      <div style={{ textAlign:"center", marginTop:20 }}>
+        <button onClick={onBack} style={{ background:"none", border:"none", fontFamily:"Space Mono,monospace", fontSize:".62rem", color:T.muted, cursor:"pointer", letterSpacing:".1em" }}>
+          ← Back to login
+        </button>
+      </div>
+    </Card>
+  );
+}
+
+function ForgotScreen({ onSwitch, toast }) {
+  const [step, setStep] = useState("email"); // email | code | done
+  const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
+  const [newPass, setNewPass] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [devCode, setDevCode] = useState(null);
+
+  const sendCode = async () => {
+    if (!email) return;
+    setLoading(true);
+    try {
+      const token = await apiForgotPassword({ email });
+      setDevCode(token);
+      setStep("code");
+      toast("Reset code generated.", "success");
+    } catch (err) { toast(err.message, "error"); }
+    finally { setLoading(false); }
+  };
+
+  const resetPass = async () => {
+    if (newPass.length < 8) { toast("Password must be at least 8 characters.", "error"); return; }
+    if (newPass !== confirm) { toast("Passwords do not match.", "error"); return; }
+    setLoading(true);
+    try {
+      await apiResetPassword({ email, code, newPassword: newPass });
+      setStep("done");
+      toast("Password updated. You can now sign in.", "success");
+    } catch (err) { toast(err.message, "error"); }
+    finally { setLoading(false); }
+  };
+
+  return (
+    <Card>
+      {step === "email" && <>
+        <h2 style={{ fontFamily:"Bebas Neue,sans-serif", fontSize:"2.4rem", letterSpacing:".08em", marginBottom:12, lineHeight:1 }}>Reset Password</h2>
+        <p style={{ fontFamily:"Space Mono,monospace", fontSize:".7rem", color:T.dim, lineHeight:1.8, marginBottom:28, letterSpacing:".08em" }}>
+          Enter your account email to receive a secure reset code.
+        </p>
+        <Field label="Email Address" type="email" value={email} onChange={setEmail} placeholder="you@domain.com" autoFocus />
+        <Btn onClick={sendCode} loading={loading} style={{ marginBottom:14 }}>Send Reset Code →</Btn>
+        <Btn onClick={() => onSwitch("login")} variant="ghost">Back to Sign In</Btn>
+      </>}
+
+      {step === "code" && <>
+        <h2 style={{ fontFamily:"Bebas Neue,sans-serif", fontSize:"2.4rem", letterSpacing:".08em", marginBottom:12 }}>Enter Reset Code</h2>
+        {devCode && (
+          <div style={{ background:"rgba(123,0,255,.08)", border:"1px solid rgba(123,0,255,.2)", padding:"12px 16px", marginBottom:24, borderRadius:2 }}>
+            <div style={{ fontFamily:"Space Mono,monospace", fontSize:".58rem", color:T.muted, letterSpacing:".2em", marginBottom:4 }}>DEV MODE — Your code:</div>
+            <div style={{ fontFamily:"Bebas Neue,sans-serif", fontSize:"1.8rem", letterSpacing:".25em", color:T.violet }}>{devCode}</div>
+          </div>
+        )}
+        <Field label="Reset Code" value={code} onChange={setCode} placeholder="XXXXXXXX" />
+        <Field label="New Password" type="password" value={newPass} onChange={setNewPass} placeholder="••••••••••••" />
+        <PasswordStrength password={newPass} />
+        <Field label="Confirm New Password" type="password" value={confirm} onChange={setConfirm} placeholder="••••••••••••" />
+        <Btn onClick={resetPass} loading={loading} style={{ marginBottom:14 }}>Update Password →</Btn>
+        <Btn onClick={() => setStep("email")} variant="ghost">← Back</Btn>
+      </>}
+
+      {step === "done" && (
+        <div style={{ textAlign:"center", padding:"24px 0" }}>
+          <div style={{
+            width:64, height:64, borderRadius:"50%", border:`1px solid rgba(0,255,153,.25)`,
+            background:"rgba(0,255,153,.06)", display:"flex", alignItems:"center", justifyContent:"center",
+            margin:"0 auto 24px",
+          }}>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={T.green} strokeWidth="1.5"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <h2 style={{ fontFamily:"Bebas Neue,sans-serif", fontSize:"2rem", letterSpacing:".08em", marginBottom:12 }}>Password Updated</h2>
+          <p style={{ fontFamily:"Space Mono,monospace", fontSize:".7rem", color:T.dim, marginBottom:32, letterSpacing:".08em", lineHeight:1.8 }}>Your neural credentials have been reset successfully.</p>
+          <Btn onClick={() => onSwitch("login")} variant="cyan">Sign In Now →</Btn>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+/* ─── DASHBOARD ─── */
+
+function DashboardNav({ session, onLogout, tab, setTab }) {
+  const tabs = ["Overview", "Profile", "Security", "Settings"];
+  return (
+    <div style={{
+      position:"sticky", top:0, zIndex:100,
+      background:"rgba(3,3,10,.9)", backdropFilter:"blur(24px)",
+      borderBottom:`1px solid ${T.border}`,
+      padding:"0 24px", display:"flex", alignItems:"center", justifyContent:"space-between",
+      height:60,
+    }}>
+      <div style={{ display:"flex", alignItems:"center", gap:24 }}>
+        <Logo onClick={() => {}} />
+        <div style={{ width:1, height:24, background:T.border }} />
+        <div style={{ display:"flex", gap:2 }}>
+          {tabs.map(t => (
+            <button key={t} onClick={() => setTab(t)} style={{
+              background: tab===t ? "rgba(0,247,255,.08)" : "transparent",
+              border: tab===t ? `1px solid rgba(0,247,255,.2)` : "1px solid transparent",
+              color: tab===t ? T.cyan : T.dim,
+              fontFamily:"Space Mono,monospace", fontSize:".62rem", letterSpacing:".15em",
+              textTransform:"uppercase", padding:"7px 14px", cursor:"pointer",
+              borderRadius:2, transition:"all .2s",
+            }}>{t}</button>
+          ))}
+        </div>
+      </div>
+      <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+        <div style={{
+          width:32, height:32, borderRadius:"50%",
+          background: "linear-gradient(135deg, rgba(0,247,255,.2), rgba(123,0,255,.2))",
+          border:`1px solid rgba(0,247,255,.2)`,
+          display:"flex", alignItems:"center", justifyContent:"center",
+          fontFamily:"Bebas Neue,sans-serif", fontSize:"1rem", color:T.cyan,
+        }}>
+          {(session.username||session.email)[0].toUpperCase()}
+        </div>
+        <span style={{ fontFamily:"Space Mono,monospace", fontSize:".65rem", color:T.dim }}>{session.username || session.email}</span>
+        <button onClick={onLogout} style={{
+          background:"rgba(255,0,80,.06)", border:"1px solid rgba(255,0,80,.2)",
+          color:"#ff0050", fontFamily:"Space Mono,monospace", fontSize:".6rem",
+          letterSpacing:".15em", textTransform:"uppercase", padding:"6px 12px",
+          cursor:"pointer", borderRadius:2, transition:"all .2s",
+        }}>
+          Logout
+        </button>
+      </div>
     </div>
-  </div>
+  );
+}
 
-  <div class="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-3xl p-8 shadow-2xl">
-    <div class="flex items-center justify-between mb-8">
+function OverviewTab({ session }) {
+  const stats = [
+    { label:"Account Status", value: session.verified ? "VERIFIED" : "UNVERIFIED", color: session.verified ? T.green : T.gold },
+    { label:"Member Since", value: new Date().getFullYear()+"", color:T.cyan },
+    { label:"AI Access Tier", value:"NEURAL BASIC", color:T.violet },
+    { label:"Staking Status", value:"PENDING", color:T.muted },
+  ];
+  return (
+    <div style={{ animation:"fadeUp .5s ease both" }}>
+      <div style={{ marginBottom:32 }}>
+        <div style={{ fontFamily:"Space Mono,monospace", fontSize:".6rem", letterSpacing:".3em", textTransform:"uppercase", color:T.cyan, marginBottom:8 }}>Dashboard</div>
+        <h1 style={{ fontFamily:"Bebas Neue,sans-serif", fontSize:"clamp(2rem,4vw,3.5rem)", letterSpacing:".05em" }}>
+          Welcome, {session.username || "Neural Agent"}
+        </h1>
+        {!session.verified && (
+          <div style={{ background:"rgba(255,190,0,.06)", border:"1px solid rgba(255,190,0,.2)", padding:"14px 18px", borderRadius:2, marginTop:20, display:"flex", alignItems:"center", gap:12, fontFamily:"Space Mono,monospace", fontSize:".68rem", color:T.gold }}>
+            ⚠ Your email is not verified. Check your inbox for the verification code.
+          </div>
+        )}
+      </div>
+
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))", gap:2, marginBottom:32 }}>
+        {stats.map(s => (
+          <div key={s.label} style={{ background:T.surface, border:`1px solid ${T.border}`, padding:"28px 24px" }}>
+            <div style={{ fontFamily:"Space Mono,monospace", fontSize:".58rem", letterSpacing:".2em", textTransform:"uppercase", color:T.muted, marginBottom:10 }}>{s.label}</div>
+            <div style={{ fontFamily:"Bebas Neue,sans-serif", fontSize:"1.5rem", letterSpacing:".08em", color:s.color }}>{s.value}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ background:T.surface, border:`1px solid ${T.border}`, padding:"32px" }}>
+        <div style={{ fontFamily:"Space Mono,monospace", fontSize:".6rem", letterSpacing:".2em", textTransform:"uppercase", color:T.muted, marginBottom:20 }}>Neural Activity Feed</div>
+        {[
+          { time:"NOW", msg:"Account session initialized", badge:"ONLINE", color:T.cyan },
+          { time:"TODAY", msg:"Neural scanner access granted", badge:"ACTIVE", color:T.green },
+          { time:"PENDING", msg:"Staking module — awaiting token launch", badge:"SOON", color:T.muted },
+          { time:"UPCOMING", msg:"AI Agent marketplace — Phase 3", badge:"LOCKED", color:T.muted },
+        ].map((a,i) => (
+          <div key={i} style={{ display:"flex", alignItems:"center", gap:16, padding:"12px 0", borderBottom:`1px solid rgba(255,255,255,.04)` }}>
+            <div style={{ fontFamily:"Space Mono,monospace", fontSize:".58rem", color:T.muted, width:70, flexShrink:0 }}>{a.time}</div>
+            <div style={{ fontFamily:"Space Mono,monospace", fontSize:".68rem", color:"#c0c0d0", flex:1 }}>{a.msg}</div>
+            <div style={{ fontFamily:"Space Mono,monospace", fontSize:".58rem", padding:"3px 8px", borderRadius:2, background:`rgba(0,0,0,.3)`, border:`1px solid ${a.color}33`, color:a.color }}>{a.badge}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ProfileTab({ session, toast, onUpdate }) {
+  const [form, setForm] = useState({
+    username: session.username || "",
+    bio: session.bio || "",
+    walletAddress: session.walletAddress || "",
+    avatar: session.avatar || null,
+  });
+  const [loading, setLoading] = useState(false);
+  const set = k => v => setForm(f => ({ ...f, [k]:v }));
+
+  const save = async () => {
+    setLoading(true);
+    try {
+      const updated = await apiUpdateProfile({ email: session.email, ...form });
+      onUpdate({ ...session, ...form });
+      toast("Profile updated successfully.", "success");
+    } catch (err) { toast(err.message, "error"); }
+    finally { setLoading(false); }
+  };
+
+  const initials = (form.username || session.email)[0].toUpperCase();
+
+  return (
+    <div style={{ animation:"fadeUp .5s ease both", maxWidth:600 }}>
+      <div style={{ fontFamily:"Space Mono,monospace", fontSize:".6rem", letterSpacing:".3em", textTransform:"uppercase", color:T.cyan, marginBottom:8 }}>Identity</div>
+      <h2 style={{ fontFamily:"Bebas Neue,sans-serif", fontSize:"2.5rem", letterSpacing:".05em", marginBottom:32 }}>Edit Profile</h2>
+
+      <div style={{ background:T.surface, border:`1px solid ${T.border}`, padding:32, marginBottom:2 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:20, marginBottom:32 }}>
+          <div style={{
+            width:72, height:72, borderRadius:"50%",
+            background:"linear-gradient(135deg,rgba(0,247,255,.2),rgba(123,0,255,.2))",
+            border:`1px solid rgba(0,247,255,.2)`,
+            display:"flex", alignItems:"center", justifyContent:"center",
+            fontFamily:"Bebas Neue,sans-serif", fontSize:"2rem", color:T.cyan,
+          }}>{initials}</div>
+          <div>
+            <div style={{ fontFamily:"Syne,sans-serif", fontWeight:800, fontSize:"1.1rem", marginBottom:4 }}>{form.username || "Neural Agent"}</div>
+            <div style={{ fontFamily:"Space Mono,monospace", fontSize:".65rem", color:T.dim }}>{session.email}</div>
+            <div style={{ fontFamily:"Space Mono,monospace", fontSize:".58rem", color: session.verified ? T.green : T.gold, marginTop:4 }}>
+              {session.verified ? "✓ Verified" : "⚠ Unverified"}
+            </div>
+          </div>
+        </div>
+
+        <Field label="Username" value={form.username} onChange={set("username")} placeholder="neural_trader" />
+        <div style={{ marginBottom:20 }}>
+          <label style={{ fontFamily:"Space Mono,monospace", fontSize:".6rem", letterSpacing:".25em", textTransform:"uppercase", color:T.muted, display:"block", marginBottom:9 }}>Bio</label>
+          <textarea
+            value={form.bio}
+            onChange={e => set("bio")(e.target.value)}
+            placeholder="Tell the neural network about yourself..."
+            rows={3}
+            style={{
+              width:"100%", padding:"14px 18px",
+              background:"rgba(255,255,255,.03)", border:`1px solid ${T.border}`,
+              borderRadius:2, color:"white", fontFamily:"Space Mono,monospace", fontSize:".78rem",
+              outline:"none", resize:"vertical", lineHeight:1.8,
+            }}
+          />
+        </div>
+        <Field label="Wallet Address (Optional)" value={form.walletAddress} onChange={set("walletAddress")} placeholder="0x... or SOL address" hint="Connect your primary wallet for staking features" />
+        <Btn onClick={save} loading={loading}>Save Profile →</Btn>
+      </div>
+
+      <div style={{ background:T.surface, border:`1px solid ${T.border}`, padding:"20px 32px" }}>
+        <div style={{ fontFamily:"Space Mono,monospace", fontSize:".6rem", color:T.muted, letterSpacing:".15em" }}>Account Email: <span style={{ color:T.dim }}>{session.email}</span></div>
+      </div>
+    </div>
+  );
+}
+
+function SecurityTab({ session, toast }) {
+  const [form, setForm] = useState({ current:"", newPass:"", confirm:"" });
+  const [loading, setLoading] = useState(false);
+  const set = k => v => setForm(f => ({ ...f, [k]:v }));
+
+  const changePass = async () => {
+    if (form.newPass.length < 8) { toast("New password must be at least 8 characters.", "error"); return; }
+    if (form.newPass !== form.confirm) { toast("Passwords do not match.", "error"); return; }
+    setLoading(true);
+    try {
+      await apiChangePassword({ email: session.email, currentPassword: form.current, newPassword: form.newPass });
+      setForm({ current:"", newPass:"", confirm:"" });
+      toast("Password updated. Neural credentials secured.", "success");
+    } catch (err) { toast(err.message, "error"); }
+    finally { setLoading(false); }
+  };
+
+  const sessions = [
+    { device:"Current Session", location:"Active Now", status:"ACTIVE", current:true },
+    { device:"Mobile Session", location:"Unknown", status:"STALE", current:false },
+  ];
+
+  return (
+    <div style={{ animation:"fadeUp .5s ease both", maxWidth:600 }}>
+      <div style={{ fontFamily:"Space Mono,monospace", fontSize:".6rem", letterSpacing:".3em", textTransform:"uppercase", color:T.cyan, marginBottom:8 }}>Security</div>
+      <h2 style={{ fontFamily:"Bebas Neue,sans-serif", fontSize:"2.5rem", letterSpacing:".05em", marginBottom:32 }}>Security Center</h2>
+
+      <div style={{ background:T.surface, border:`1px solid ${T.border}`, padding:32, marginBottom:2 }}>
+        <div style={{ fontFamily:"Syne,sans-serif", fontWeight:800, fontSize:"1rem", marginBottom:24 }}>Change Password</div>
+        <Field label="Current Password" type="password" value={form.current} onChange={set("current")} placeholder="••••••••" />
+        <Field label="New Password" type="password" value={form.newPass} onChange={set("newPass")} placeholder="••••••••" />
+        <PasswordStrength password={form.newPass} />
+        <Field label="Confirm New Password" type="password" value={form.confirm} onChange={set("confirm")} placeholder="••••••••" />
+        <Btn onClick={changePass} loading={loading} variant="cyan">Update Password →</Btn>
+      </div>
+
+      <div style={{ background:T.surface, border:`1px solid ${T.border}`, padding:32, marginBottom:2 }}>
+        <div style={{ fontFamily:"Syne,sans-serif", fontWeight:800, fontSize:"1rem", marginBottom:20 }}>Active Sessions</div>
+        {sessions.map((s,i) => (
+          <div key={i} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"14px 0", borderBottom:`1px solid rgba(255,255,255,.04)` }}>
+            <div>
+              <div style={{ fontFamily:"Space Mono,monospace", fontSize:".72rem", marginBottom:4 }}>{s.device}</div>
+              <div style={{ fontFamily:"Space Mono,monospace", fontSize:".6rem", color:T.muted }}>{s.location}</div>
+            </div>
+            <div style={{
+              fontFamily:"Space Mono,monospace", fontSize:".58rem", padding:"3px 8px", borderRadius:2,
+              background: s.current ? "rgba(0,255,153,.08)" : "rgba(255,255,255,.04)",
+              border:`1px solid ${s.current ? "rgba(0,255,153,.2)" : T.border}`,
+              color: s.current ? T.green : T.muted,
+            }}>{s.status}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ background:"rgba(255,0,80,.04)", border:"1px solid rgba(255,0,80,.15)", padding:32 }}>
+        <div style={{ fontFamily:"Syne,sans-serif", fontWeight:800, fontSize:"1rem", marginBottom:12, color:"#ff0050" }}>Danger Zone</div>
+        <p style={{ fontFamily:"Space Mono,monospace", fontSize:".68rem", color:T.dim, lineHeight:1.8, marginBottom:20 }}>
+          Permanently delete your account and all associated data. This action cannot be undone.
+        </p>
+        <Btn variant="danger" onClick={() => toast("For account deletion, contact support@surchi.xyz", "error")}>Delete Account</Btn>
+      </div>
+    </div>
+  );
+}
+
+function SettingsTab({ session, toast }) {
+  const [notifs, setNotifs] = useState({ whale:true, sentiment:false, news:true, staking:true });
+  const [theme, setTheme] = useState("dark");
+  const [saved, setSaved] = useState(false);
+
+  const save = async () => {
+    await delay(400);
+    setSaved(true);
+    toast("Settings saved to neural profile.", "success");
+    setTimeout(() => setSaved(false), 2000);
+  };
+
+  const Toggle = ({ label, sublabel, checked, onChange }) => (
+    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"16px 0", borderBottom:`1px solid rgba(255,255,255,.04)` }}>
       <div>
-        <p class="text-gray-400 text-sm">Total Portfolio</p>
-        <h2 class="text-4xl font-bold mt-1">$248,450</h2>
+        <div style={{ fontFamily:"Space Mono,monospace", fontSize:".7rem", marginBottom:4 }}>{label}</div>
+        {sublabel && <div style={{ fontFamily:"Space Mono,monospace", fontSize:".6rem", color:T.muted }}>{sublabel}</div>}
       </div>
-
-      <div class="bg-green-500/20 text-green-400 px-4 py-2 rounded-xl text-sm">
-        +18.4%
+      <div
+        onClick={onChange}
+        style={{
+          width:44, height:24, borderRadius:12,
+          background: checked ? "rgba(0,247,255,.15)" : "rgba(255,255,255,.05)",
+          border:`1px solid ${checked ? "rgba(0,247,255,.4)" : T.border}`,
+          cursor:"pointer", position:"relative", transition:"all .3s",
+        }}
+      >
+        <div style={{
+          position:"absolute", top:3, left: checked ? 22 : 3,
+          width:16, height:16, borderRadius:"50%",
+          background: checked ? T.cyan : T.muted,
+          transition:"all .3s",
+        }} />
       </div>
     </div>
+  );
 
-    <div class="space-y-5">
-      <div class="bg-black/40 border border-white/10 rounded-2xl p-5 flex items-center justify-between">
-        <div>
-          <p class="text-gray-400 text-sm">AI Growth Index</p>
-          <h3 class="text-xl font-bold mt-1">+12.8%</h3>
+  return (
+    <div style={{ animation:"fadeUp .5s ease both", maxWidth:600 }}>
+      <div style={{ fontFamily:"Space Mono,monospace", fontSize:".6rem", letterSpacing:".3em", textTransform:"uppercase", color:T.cyan, marginBottom:8 }}>Preferences</div>
+      <h2 style={{ fontFamily:"Bebas Neue,sans-serif", fontSize:"2.5rem", letterSpacing:".05em", marginBottom:32 }}>Account Settings</h2>
+
+      <div style={{ background:T.surface, border:`1px solid ${T.border}`, padding:32, marginBottom:2 }}>
+        <div style={{ fontFamily:"Syne,sans-serif", fontWeight:800, fontSize:"1rem", marginBottom:8 }}>Notifications</div>
+        <p style={{ fontFamily:"Space Mono,monospace", fontSize:".65rem", color:T.dim, marginBottom:20, lineHeight:1.8 }}>Configure which AI signals and alerts you receive.</p>
+        <Toggle label="Whale Activity Alerts" sublabel="Get notified when large wallets move" checked={notifs.whale} onChange={() => setNotifs(n=>({...n,whale:!n.whale}))} />
+        <Toggle label="Sentiment Spike Alerts" sublabel="AI-detected narrative momentum" checked={notifs.sentiment} onChange={() => setNotifs(n=>({...n,sentiment:!n.sentiment}))} />
+        <Toggle label="Neural News Digest" sublabel="Daily AI market summary" checked={notifs.news} onChange={() => setNotifs(n=>({...n,news:!n.news}))} />
+        <Toggle label="Staking Rewards Updates" sublabel="APR changes and payout notifications" checked={notifs.staking} onChange={() => setNotifs(n=>({...n,staking:!n.staking}))} />
+      </div>
+
+      <div style={{ background:T.surface, border:`1px solid ${T.border}`, padding:32, marginBottom:2 }}>
+        <div style={{ fontFamily:"Syne,sans-serif", fontWeight:800, fontSize:"1rem", marginBottom:20 }}>Interface Theme</div>
+        <div style={{ display:"flex", gap:10 }}>
+          {["dark","stealth","cyan"].map(t => (
+            <button key={t} onClick={() => setTheme(t)} style={{
+              flex:1, padding:"12px", background: theme===t ? "rgba(0,247,255,.08)" : T.surface,
+              border:`1px solid ${theme===t ? "rgba(0,247,255,.3)" : T.border}`,
+              color: theme===t ? T.cyan : T.dim,
+              fontFamily:"Space Mono,monospace", fontSize:".62rem", letterSpacing:".15em",
+              textTransform:"uppercase", cursor:"pointer", borderRadius:2, transition:"all .2s",
+            }}>{t}</button>
+          ))}
         </div>
-
-        <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600"></div>
       </div>
 
-      <div class="bg-black/40 border border-white/10 rounded-2xl p-5 flex items-center justify-between">
-        <div>
-          <p class="text-gray-400 text-sm">Monthly Returns</p>
-          <h3 class="text-xl font-bold mt-1">$18,400</h3>
+      <div style={{ background:T.surface, border:`1px solid ${T.border}`, padding:32 }}>
+        <div style={{ fontFamily:"Syne,sans-serif", fontWeight:800, fontSize:"1rem", marginBottom:20 }}>Data & Privacy</div>
+        <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+          {["Export Account Data","Download Activity Log","Opt-out of Analytics"].map(label => (
+            <button key={label} onClick={() => toast(`${label} — coming soon.`, "success")} style={{
+              width:"100%", padding:"12px 16px", background:"transparent",
+              border:`1px solid ${T.border}`, color:T.dim,
+              fontFamily:"Space Mono,monospace", fontSize:".65rem", letterSpacing:".12em",
+              textTransform:"uppercase", cursor:"pointer", borderRadius:2,
+              textAlign:"left", transition:"all .2s",
+            }}>{label} →</button>
+          ))}
         </div>
+      </div>
 
-        <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600"></div>
+      <div style={{ marginTop:2 }}>
+        <Btn onClick={save} variant="cyan">{saved ? "✓ Saved" : "Save Settings →"}</Btn>
       </div>
     </div>
-  </div>
+  );
+}
 
-</div>
+function Dashboard({ session, onLogout, onUpdate }) {
+  const [tab, setTab] = useState("Overview");
+  const { toasts, push: toast } = useToast();
 
-  </section>  <!-- FEATURES -->  <section class="py-24 px-6 border-t border-white/10">
-    <div class="max-w-7xl mx-auto text-center">
-      <p class="text-cyan-400 font-semibold uppercase tracking-widest text-sm mb-4">
-        Platform Features
-      </p><h2 class="text-5xl font-black mb-6">Everything You Need</h2>
+  return (
+    <div className="surchi-auth-root" style={{ minHeight:"100vh" }}>
+      <style>{GLOBAL_CSS}</style>
+      <div className="hex-bg" />
+      <div className="blob" style={{ width:500,height:500,background:"radial-gradient(circle,rgba(0,247,255,.05) 0%,transparent 70%)",top:-200,left:-200,animation:"blobFloat 18s ease-in-out infinite" }} />
+      <div className="blob" style={{ width:600,height:600,background:"radial-gradient(circle,rgba(123,0,255,.04) 0%,transparent 70%)",bottom:-200,right:-200,animation:"blobFloat 22s ease-in-out infinite reverse" }} />
+      <Toast toasts={toasts} />
 
-  <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mt-16">
+      <DashboardNav session={session} onLogout={onLogout} tab={tab} setTab={setTab} />
 
-    <div class="bg-white/5 border border-white/10 rounded-3xl p-8 hover:border-cyan-400/40 transition">
-      <h3 class="text-2xl font-bold mb-4">AI Insights</h3>
-      <p class="text-gray-400">Smart analytics and automated growth tracking.</p>
+      <div style={{ padding:"40px 24px", maxWidth:900, margin:"0 auto" }}>
+        {tab === "Overview"  && <OverviewTab session={session} />}
+        {tab === "Profile"   && <ProfileTab session={session} toast={toast} onUpdate={onUpdate} />}
+        {tab === "Security"  && <SecurityTab session={session} toast={toast} />}
+        {tab === "Settings"  && <SettingsTab session={session} toast={toast} />}
+      </div>
     </div>
+  );
+}
 
-    <div class="bg-white/5 border border-white/10 rounded-3xl p-8 hover:border-cyan-400/40 transition">
-      <h3 class="text-2xl font-bold mb-4">Fast Withdrawals</h3>
-      <p class="text-gray-400">Efficient processing systems with transparent tracking.</p>
+/* ─── AUTH LAYOUT WRAPPER ─── */
+function AuthLayout({ children, toast }) {
+  return (
+    <div className="surchi-auth-root" style={{ display:"flex", alignItems:"center", justifyContent:"center", minHeight:"100vh", padding:"80px 20px 40px" }}>
+      <style>{GLOBAL_CSS}</style>
+      <div className="hex-bg" />
+      <div className="blob" style={{ width:500,height:500,background:"radial-gradient(circle,rgba(0,247,255,.06) 0%,transparent 70%)",top:-150,left:-150,animation:"blobFloat 18s ease-in-out infinite" }} />
+      <div className="blob" style={{ width:700,height:700,background:"radial-gradient(circle,rgba(123,0,255,.05) 0%,transparent 70%)",bottom:-300,right:-300,animation:"blobFloat 22s ease-in-out infinite reverse" }} />
+      <div className="blob" style={{ width:400,height:400,background:"radial-gradient(circle,rgba(255,0,170,.04) 0%,transparent 70%)",top:"40%",left:"40%",animation:"blobFloat 15s ease-in-out infinite 5s" }} />
+
+      {/* Scan-line */}
+      <div style={{ position:"fixed",inset:0,pointerEvents:"none",zIndex:9000,background:"repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,.05) 3px,rgba(0,0,0,.05) 4px)" }} />
+
+      <div style={{ position:"fixed",top:0,left:0,right:0,height:60,background:"rgba(3,3,10,.8)",backdropFilter:"blur(24px)",borderBottom:`1px solid ${T.border}`,display:"flex",alignItems:"center",padding:"0 5%",zIndex:100 }}>
+        <Logo onClick={() => {}} />
+      </div>
+
+      <div style={{ width:"100%", maxWidth:520, position:"relative", zIndex:10 }}>
+        {children}
+      </div>
     </div>
+  );
+}
 
-    <div class="bg-white/5 border border-white/10 rounded-3xl p-8 hover:border-cyan-400/40 transition">
-      <h3 class="text-2xl font-bold mb-4">Advanced Security</h3>
-      <p class="text-gray-400">Multi-layer encrypted infrastructure for protection.</p>
-    </div>
+/* ─── ROOT APP ─── */
+export default function App() {
+  const [session, setSession] = useState(null);
+  const [screen, setScreen] = useState("login"); // login | signup | forgot | verify | dashboard
+  const [pendingUser, setPendingUser] = useState(null);
+  const { toasts, push: toast } = useToast();
 
-  </div>
-</div>
+  useEffect(() => {
+    const s = getSession();
+    if (s) { setSession(s); setScreen("dashboard"); }
+  }, []);
 
-  </section>  <!-- LOGIN -->  <section class="py-24 px-6 border-t border-white/10 bg-gradient-to-b from-black to-slate-950">
-    <div class="max-w-md mx-auto bg-white/5 border border-white/10 rounded-[40px] p-10 backdrop-blur-2xl shadow-2xl"><div class="text-center mb-10">
-    <div class="w-20 h-20 rounded-3xl bg-gradient-to-br from-cyan-500 to-blue-600 mx-auto mb-6 flex items-center justify-center text-3xl font-black shadow-lg shadow-cyan-500/30">
-      P
-    </div>
+  const handleLogout = async () => {
+    await apiLogout();
+    setSession(null);
+    setScreen("login");
+    toast("Logged out. Neural session terminated.", "success");
+  };
 
-    <h2 class="text-4xl font-black mb-3">Welcome Back</h2>
-    <p class="text-gray-400">Login to your Pax Funds account</p>
-  </div>
+  const handleLoginSuccess = (s) => {
+    setSession(s);
+    if (!s.verified) {
+      setPendingUser({ email: s.email });
+      setScreen("verify");
+    } else {
+      setScreen("dashboard");
+    }
+  };
 
-  <div class="space-y-5">
-    <input type="email" placeholder="Email Address" class="w-full px-5 py-4 rounded-2xl bg-black/40 border border-white/10 outline-none focus:border-cyan-400">
+  const handleSignUpSuccess = (user) => {
+    setPendingUser(user);
+    setScreen("verify");
+  };
 
-    <input type="password" placeholder="Password" class="w-full px-5 py-4 rounded-2xl bg-black/40 border border-white/10 outline-none focus:border-cyan-400">
+  const handleVerifySuccess = () => {
+    const s = getSession();
+    if (s) { setSession(s); setScreen("dashboard"); }
+    else setScreen("login");
+  };
 
-    <button class="w-full py-4 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 font-semibold hover:scale-105 transition">
-      Login Account
-    </button>
-  </div>
-</div>
+  const handleUpdate = (updated) => { setSession(updated); };
 
-  </section></body>
-</html>
+  if (screen === "dashboard" && session) {
+    return (
+      <>
+        <style>{GLOBAL_CSS}</style>
+        <Toast toasts={toasts} />
+        <Dashboard session={session} onLogout={handleLogout} onUpdate={handleUpdate} />
+      </>
+    );
+  }
+
+  return (
+    <>
+      <Toast toasts={toasts} />
+      <AuthLayout toast={toast}>
+        {screen === "login" && (
+          <LoginScreen
+            onSwitch={setScreen}
+            onSuccess={handleLoginSuccess}
+            toast={toast}
+          />
+        )}
+        {screen === "signup" && (
+          <SignUpScreen
+            onSwitch={setScreen}
+            onSuccess={handleSignUpSuccess}
+            toast={toast}
+          />
+        )}
+        {screen === "forgot" && (
+          <ForgotScreen
+            onSwitch={setScreen}
+            toast={toast}
+          />
+        )}
+        {screen === "verify" && (
+          <VerifyScreen
+            email={pendingUser?.email}
+            onSuccess={handleVerifySuccess}
+            onBack={() => setScreen("login")}
+            toast={toast}
+          />
+        )}
+      </AuthLayout>
+    </>
+  );
+}
