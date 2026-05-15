@@ -1,213 +1,640 @@
-2000);
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  createContext,
+  useContext
+} from "react";
+
+import ReactDOM from "react-dom/client";
+
+/* ─── DESIGN TOKENS ─── */
+const T = {
+  cyan: "#00f7ff",
+  violet: "#7b00ff",
+  magenta: "#ff00aa",
+  green: "#00ff99",
+  gold: "#ffbe00",
+  bg: "#03030a",
+  surface: "rgba(255,255,255,0.02)",
+  border: "rgba(255,255,255,0.07)",
+  muted: "#5a5a72",
+  dim: "#9090aa",
+};
+
+/* ─── STORAGE KEYS ─── */
+const DB_KEY = "surchi_users_db";
+const SESSION_KEY = "surchi_session";
+
+/* ─── SAFE STORAGE ─── */
+function getDB() {
+  try {
+    return JSON.parse(window.localStorage.getItem(DB_KEY) || "{}");
+  } catch (e) {
+    console.log("localStorage unavailable");
+    return {};
+  }
+}
+
+function saveDB(db) {
+  try {
+    window.localStorage.setItem(DB_KEY, JSON.stringify(db));
+  } catch (e) {
+    console.log("Could not save DB");
+  }
+}
+
+/* ─── SAFE HASH ─── */
+async function hashPassword(pw) {
+  try {
+    if (window.crypto?.subtle) {
+      const buf = await window.crypto.subtle.digest(
+        "SHA-256",
+        new TextEncoder().encode(pw + "surchi_salt_2026")
+      );
+
+      return Array.from(new Uint8Array(buf))
+        .map(b => b.toString(16).padStart(2, "0"))
+        .join("");
+    }
+  } catch (e) {
+    console.log("Crypto failed, using fallback hash");
+  }
+
+  return btoa(pw + "surchi_salt_2026");
+}
+
+/* ─── SAFE TOKEN ─── */
+function generateToken() {
+  try {
+    const arr = new Uint8Array(32);
+
+    window.crypto.getRandomValues(arr);
+
+    return Array.from(arr)
+      .map(b => b.toString(16).padStart(2, "0"))
+      .join("");
+  } catch (e) {
+    return Math.random().toString(36).substring(2) + Date.now();
+  }
+}
+
+function delay(ms) {
+  return new Promise(r => setTimeout(r, ms));
+}
+
+/* ─── AUTH API ─── */
+async function apiSignUp({ email, password, username }) {
+  await delay(700);
+
+  const db = getDB();
+
+  if (db[email]) {
+    throw new Error("Account already exists.");
+  }
+
+  const hash = await hashPassword(password);
+
+  db[email] = {
+    uid: generateToken().slice(0, 16),
+    email,
+    username,
+    passwordHash: hash,
+    verified: false,
+    verifyToken: generateToken().slice(0, 8).toUpperCase(),
+    createdAt: Date.now(),
   };
 
-  const Toggle = ({ label, sublabel, checked, onChange }) => (
-    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"16px 0", borderBottom:`1px solid rgba(255,255,255,.04)` }}>
-      <div>
-        <div style={{ fontFamily:"Space Mono,monospace", fontSize:".7rem", marginBottom:4 }}>{label}</div>
-        {sublabel && <div style={{ fontFamily:"Space Mono,monospace", fontSize:".6rem", color:T.muted }}>{sublabel}</div>}
-      </div>
+  saveDB(db);
+
+  return {
+    email,
+    username,
+    password,
+  };
+}
+
+async function apiLogin({ email, password, remember }) {
+  await delay(600);
+
+  const db = getDB();
+
+  const user = db[email];
+
+  if (!user) {
+    throw new Error("No account found.");
+  }
+
+  const hash = await hashPassword(password);
+
+  if (hash !== user.passwordHash) {
+    throw new Error("Incorrect password.");
+  }
+
+  const session = {
+    token: generateToken(),
+    email: user.email,
+    username: user.username,
+    verified: user.verified,
+    expires: remember
+      ? Date.now() + 30 * 24 * 60 * 60 * 1000
+      : Date.now() + 24 * 60 * 60 * 1000,
+  };
+
+  localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+
+  return session;
+}
+
+async function apiLogout() {
+  localStorage.removeItem(SESSION_KEY);
+}
+
+async function apiVerifyEmail({ email, code }) {
+  const db = getDB();
+
+  const user = db[email];
+
+  if (!user) {
+    throw new Error("User not found.");
+  }
+
+  if (user.verifyToken !== code.toUpperCase()) {
+    throw new Error("Invalid verification code.");
+  }
+
+  user.verified = true;
+
+  saveDB(db);
+
+  const raw = localStorage.getItem(SESSION_KEY);
+
+  if (raw) {
+    const session = JSON.parse(raw);
+
+    session.verified = true;
+
+    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  }
+
+  return true;
+}
+
+function getSession() {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+
+    if (!raw) return null;
+
+    const session = JSON.parse(raw);
+
+    if (Date.now() > session.expires) {
+      localStorage.removeItem(SESSION_KEY);
+      return null;
+    }
+
+    return session;
+  } catch {
+    return null;
+  }
+}
+
+/* ─── TOAST ─── */
+function useToast() {
+  const [toasts, setToasts] = useState([]);
+
+  const push = useCallback((msg, type = "success") => {
+    const id = Date.now();
+
+    setToasts(prev => [...prev, { id, msg, type }]);
+
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 3000);
+  }, []);
+
+  return { toasts, push };
+}
+
+function Toast({ toasts }) {
+  return (
+    <div
+      style={{
+        position: "fixed",
+        top: 20,
+        right: 20,
+        zIndex: 9999,
+      }}
+    >
+      {toasts.map(t => (
+        <div
+          key={t.id}
+          style={{
+            marginBottom: 10,
+            padding: "14px 18px",
+            background:
+              t.type === "error"
+                ? "rgba(255,0,80,.12)"
+                : "rgba(0,255,153,.12)",
+            border:
+              t.type === "error"
+                ? "1px solid rgba(255,0,80,.3)"
+                : "1px solid rgba(0,255,153,.3)",
+            color: t.type === "error" ? "#ff0050" : T.green,
+            fontFamily: "monospace",
+          }}
+        >
+          {t.msg}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ─── FIELD ─── */
+function Field({
+  label,
+  value,
+  onChange,
+  type = "text",
+  placeholder,
+}) {
+  return (
+    <div style={{ marginBottom: 20 }}>
       <div
-        onClick={onChange}
         style={{
-          width:44, height:24, borderRadius:12,
-          background: checked ? "rgba(0,247,255,.15)" : "rgba(255,255,255,.05)",
-          border:`1px solid ${checked ? "rgba(0,247,255,.4)" : T.border}`,
-          cursor:"pointer", position:"relative", transition:"all .3s",
+          marginBottom: 8,
+          fontSize: 12,
+          color: T.dim,
         }}
       >
-        <div style={{
-          position:"absolute", top:3, left: checked ? 22 : 3,
-          width:16, height:16, borderRadius:"50%",
-          background: checked ? T.cyan : T.muted,
-          transition:"all .3s",
-        }} />
-      </div>
-    </div>
-  );
-
-  return (
-    <div style={{ animation:"fadeUp .5s ease both", maxWidth:600 }}>
-      <div style={{ fontFamily:"Space Mono,monospace", fontSize:".6rem", letterSpacing:".3em", textTransform:"uppercase", color:T.cyan, marginBottom:8 }}>Preferences</div>
-      <h2 style={{ fontFamily:"Bebas Neue,sans-serif", fontSize:"2.5rem", letterSpacing:".05em", marginBottom:32 }}>Account Settings</h2>
-
-      <div style={{ background:T.surface, border:`1px solid ${T.border}`, padding:32, marginBottom:2 }}>
-        <div style={{ fontFamily:"Syne,sans-serif", fontWeight:800, fontSize:"1rem", marginBottom:8 }}>Notifications</div>
-        <p style={{ fontFamily:"Space Mono,monospace", fontSize:".65rem", color:T.dim, marginBottom:20, lineHeight:1.8 }}>Configure which AI signals and alerts you receive.</p>
-        <Toggle label="Whale Activity Alerts" sublabel="Get notified when large wallets move" checked={notifs.whale} onChange={() => setNotifs(n=>({...n,whale:!n.whale}))} />
-        <Toggle label="Sentiment Spike Alerts" sublabel="AI-detected narrative momentum" checked={notifs.sentiment} onChange={() => setNotifs(n=>({...n,sentiment:!n.sentiment}))} />
-        <Toggle label="Neural News Digest" sublabel="Daily AI market summary" checked={notifs.news} onChange={() => setNotifs(n=>({...n,news:!n.news}))} />
-        <Toggle label="Staking Rewards Updates" sublabel="APR changes and payout notifications" checked={notifs.staking} onChange={() => setNotifs(n=>({...n,staking:!n.staking}))} />
+        {label}
       </div>
 
-      <div style={{ background:T.surface, border:`1px solid ${T.border}`, padding:32, marginBottom:2 }}>
-        <div style={{ fontFamily:"Syne,sans-serif", fontWeight:800, fontSize:"1rem", marginBottom:20 }}>Interface Theme</div>
-        <div style={{ display:"flex", gap:10 }}>
-          {["dark","stealth","cyan"].map(t => (
-            <button key={t} onClick={() => setTheme(t)} style={{
-              flex:1, padding:"12px", background: theme===t ? "rgba(0,247,255,.08)" : T.surface,
-              border:`1px solid ${theme===t ? "rgba(0,247,255,.3)" : T.border}`,
-              color: theme===t ? T.cyan : T.dim,
-              fontFamily:"Space Mono,monospace", fontSize:".62rem", letterSpacing:".15em",
-              textTransform:"uppercase", cursor:"pointer", borderRadius:2, transition:"all .2s",
-            }}>{t}</button>
-          ))}
-        </div>
-      </div>
-
-      <div style={{ background:T.surface, border:`1px solid ${T.border}`, padding:32 }}>
-        <div style={{ fontFamily:"Syne,sans-serif", fontWeight:800, fontSize:"1rem", marginBottom:20 }}>Data & Privacy</div>
-        <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-          {["Export Account Data","Download Activity Log","Opt-out of Analytics"].map(label => (
-            <button key={label} onClick={() => toast(`${label} — coming soon.`, "success")} style={{
-              width:"100%", padding:"12px 16px", background:"transparent",
-              border:`1px solid ${T.border}`, color:T.dim,
-              fontFamily:"Space Mono,monospace", fontSize:".65rem", letterSpacing:".12em",
-              textTransform:"uppercase", cursor:"pointer", borderRadius:2,
-              textAlign:"left", transition:"all .2s",
-            }}>{label} →</button>
-          ))}
-        </div>
-      </div>
-
-      <div style={{ marginTop:2 }}>
-        <Btn onClick={save} variant="cyan">{saved ? "✓ Saved" : "Save Settings →"}</Btn>
-      </div>
+      <input
+        type={type}
+        value={value}
+        placeholder={placeholder}
+        onChange={e => onChange(e.target.value)}
+        style={{
+          width: "100%",
+          padding: 14,
+          background: "#111",
+          border: `1px solid ${T.border}`,
+          color: "#fff",
+        }}
+      />
     </div>
   );
 }
 
-function Dashboard({ session, onLogout, onUpdate }) {
-  const [tab, setTab] = useState("Overview");
-  const { toasts, push: toast } = useToast();
+/* ─── BUTTON ─── */
+function Btn({ children, onClick, loading }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={loading}
+      style={{
+        width: "100%",
+        padding: 15,
+        background: "#fff",
+        color: "#000",
+        border: "none",
+        cursor: "pointer",
+        fontWeight: "bold",
+      }}
+    >
+      {loading ? "Loading..." : children}
+    </button>
+  );
+}
+
+/* ─── LOGIN ─── */
+function LoginScreen({ onSwitch, onSuccess, toast }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const submit = async () => {
+    setLoading(true);
+
+    try {
+      const session = await apiLogin({
+        email,
+        password,
+        remember: true,
+      });
+
+      toast("Welcome back.", "success");
+
+      onSuccess(session);
+    } catch (e) {
+      toast(e.message, "error");
+    }
+
+    setLoading(false);
+  };
 
   return (
-    <div className="surchi-auth-root" style={{ minHeight:"100vh" }}>
-      <style>{GLOBAL_CSS}</style>
-      <div className="hex-bg" />
-      <div className="blob" style={{ width:500,height:500,background:"radial-gradient(circle,rgba(0,247,255,.05) 0%,transparent 70%)",top:-200,left:-200,animation:"blobFloat 18s ease-in-out infinite" }} />
-      <div className="blob" style={{ width:600,height:600,background:"radial-gradient(circle,rgba(123,0,255,.04) 0%,transparent 70%)",bottom:-200,right:-200,animation:"blobFloat 22s ease-in-out infinite reverse" }} />
-      <Toast toasts={toasts} />
+    <div>
+      <h1>SURCHI AI LOGIN</h1>
 
-      <DashboardNav session={session} onLogout={onLogout} tab={tab} setTab={setTab} />
+      <Field
+        label="Email"
+        value={email}
+        onChange={setEmail}
+      />
 
-      <div style={{ padding:"40px 24px", maxWidth:900, margin:"0 auto" }}>
-        {tab === "Overview"  && <OverviewTab session={session} />}
-        {tab === "Profile"   && <ProfileTab session={session} toast={toast} onUpdate={onUpdate} />}
-        {tab === "Security"  && <SecurityTab session={session} toast={toast} />}
-        {tab === "Settings"  && <SettingsTab session={session} toast={toast} />}
-      </div>
+      <Field
+        label="Password"
+        type="password"
+        value={password}
+        onChange={setPassword}
+      />
+
+      <Btn onClick={submit} loading={loading}>
+        LOGIN
+      </Btn>
+
+      <button
+        onClick={() => onSwitch("signup")}
+        style={{
+          marginTop: 20,
+          background: "none",
+          border: "none",
+          color: T.cyan,
+          cursor: "pointer",
+        }}
+      >
+        Create account
+      </button>
     </div>
   );
 }
 
-/* ─── AUTH LAYOUT WRAPPER ─── */
-function AuthLayout({ children, toast }) {
+/* ─── SIGNUP ─── */
+function SignUpScreen({ onSwitch, onSuccess, toast }) {
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  const [loading, setLoading] = useState(false);
+
+  const submit = async () => {
+    setLoading(true);
+
+    try {
+      const user = await apiSignUp({
+        email,
+        password,
+        username,
+      });
+
+      toast("Account created.", "success");
+
+      onSuccess(user);
+    } catch (e) {
+      toast(e.message, "error");
+    }
+
+    setLoading(false);
+  };
+
   return (
-    <div className="surchi-auth-root" style={{ display:"flex", alignItems:"center", justifyContent:"center", minHeight:"100vh", padding:"80px 20px 40px" }}>
-      <style>{GLOBAL_CSS}</style>
-      <div className="hex-bg" />
-      <div className="blob" style={{ width:500,height:500,background:"radial-gradient(circle,rgba(0,247,255,.06) 0%,transparent 70%)",top:-150,left:-150,animation:"blobFloat 18s ease-in-out infinite" }} />
-      <div className="blob" style={{ width:700,height:700,background:"radial-gradient(circle,rgba(123,0,255,.05) 0%,transparent 70%)",bottom:-300,right:-300,animation:"blobFloat 22s ease-in-out infinite reverse" }} />
-      <div className="blob" style={{ width:400,height:400,background:"radial-gradient(circle,rgba(255,0,170,.04) 0%,transparent 70%)",top:"40%",left:"40%",animation:"blobFloat 15s ease-in-out infinite 5s" }} />
+    <div>
+      <h1>SURCHI AI SIGNUP</h1>
 
-      {/* Scan-line */}
-      <div style={{ position:"fixed",inset:0,pointerEvents:"none",zIndex:9000,background:"repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,.05) 3px,rgba(0,0,0,.05) 4px)" }} />
+      <Field
+        label="Username"
+        value={username}
+        onChange={setUsername}
+      />
 
-      <div style={{ position:"fixed",top:0,left:0,right:0,height:60,background:"rgba(3,3,10,.8)",backdropFilter:"blur(24px)",borderBottom:`1px solid ${T.border}`,display:"flex",alignItems:"center",padding:"0 5%",zIndex:100 }}>
-        <Logo onClick={() => {}} />
-      </div>
+      <Field
+        label="Email"
+        value={email}
+        onChange={setEmail}
+      />
 
-      <div style={{ width:"100%", maxWidth:520, position:"relative", zIndex:10 }}>
-        {children}
-      </div>
+      <Field
+        label="Password"
+        type="password"
+        value={password}
+        onChange={setPassword}
+      />
+
+      <Btn onClick={submit} loading={loading}>
+        CREATE ACCOUNT
+      </Btn>
+
+      <button
+        onClick={() => onSwitch("login")}
+        style={{
+          marginTop: 20,
+          background: "none",
+          border: "none",
+          color: T.cyan,
+          cursor: "pointer",
+        }}
+      >
+        Back to login
+      </button>
     </div>
   );
 }
 
-/* ─── ROOT APP ─── */
-export default function App() {
+/* ─── VERIFY ─── */
+function VerifyScreen({ email, onSuccess, toast }) {
+  const [code, setCode] = useState("");
+
+  const submit = async () => {
+    try {
+      await apiVerifyEmail({
+        email,
+        code,
+      });
+
+      toast("Email verified.", "success");
+
+      onSuccess();
+    } catch (e) {
+      toast(e.message, "error");
+    }
+  };
+
+  const db = getDB();
+
+  return (
+    <div>
+      <h1>VERIFY EMAIL</h1>
+
+      <div style={{ marginBottom: 20 }}>
+        DEV CODE:
+        <br />
+        <strong>{db[email]?.verifyToken}</strong>
+      </div>
+
+      <Field
+        label="Verification Code"
+        value={code}
+        onChange={setCode}
+      />
+
+      <Btn onClick={submit}>
+        VERIFY
+      </Btn>
+    </div>
+  );
+}
+
+/* ─── DASHBOARD ─── */
+function Dashboard({ session, onLogout }) {
+  return (
+    <div>
+      <h1>WELCOME {session.username}</h1>
+
+      <p>Email: {session.email}</p>
+
+      <p>
+        Status:
+        {" "}
+        {session.verified ? "Verified" : "Not Verified"}
+      </p>
+
+      <button
+        onClick={onLogout}
+        style={{
+          marginTop: 20,
+          padding: 12,
+          background: "#ff0050",
+          border: "none",
+          color: "#fff",
+          cursor: "pointer",
+        }}
+      >
+        Logout
+      </button>
+    </div>
+  );
+}
+
+/* ─── APP ─── */
+function App() {
+  const [screen, setScreen] = useState("login");
+
   const [session, setSession] = useState(null);
-  const [screen, setScreen] = useState("login"); // login | signup | forgot | verify | dashboard
+
   const [pendingUser, setPendingUser] = useState(null);
+
   const { toasts, push: toast } = useToast();
 
   useEffect(() => {
     const s = getSession();
-    if (s) { setSession(s); setScreen("dashboard"); }
+
+    if (s) {
+      setSession(s);
+      setScreen("dashboard");
+    }
   }, []);
 
-  const handleLogout = async () => {
-    await apiLogout();
-    setSession(null);
-    setScreen("login");
-    toast("Logged out. Neural session terminated.", "success");
-  };
-
-  const handleLoginSuccess = (s) => {
+  const handleLoginSuccess = s => {
     setSession(s);
+
     if (!s.verified) {
-      setPendingUser({ email: s.email });
+      setPendingUser({
+        email: s.email,
+      });
+
       setScreen("verify");
     } else {
       setScreen("dashboard");
     }
   };
 
-  const handleSignUpSuccess = (user) => {
+  const handleSignUpSuccess = async user => {
     setPendingUser(user);
+
+    try {
+      const session = await apiLogin({
+        email: user.email,
+        password: user.password,
+        remember: true,
+      });
+
+      setSession(session);
+    } catch (e) {}
+
     setScreen("verify");
   };
 
   const handleVerifySuccess = () => {
     const s = getSession();
-    if (s) { setSession(s); setScreen("dashboard"); }
-    else setScreen("login");
+
+    if (s) {
+      setSession(s);
+      setScreen("dashboard");
+    }
   };
 
-  const handleUpdate = (updated) => { setSession(updated); };
+  const logout = async () => {
+    await apiLogout();
 
-  if (screen === "dashboard" && session) {
-    return (
-      <>
-        <style>{GLOBAL_CSS}</style>
-        <Toast toasts={toasts} />
-        <Dashboard session={session} onLogout={handleLogout} onUpdate={handleUpdate} />
-      </>
-    );
-  }
+    setSession(null);
+
+    setScreen("login");
+
+    toast("Logged out.", "success");
+  };
 
   return (
-    <>
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "#03030a",
+        color: "#fff",
+        padding: 40,
+        fontFamily: "Arial",
+      }}
+    >
       <Toast toasts={toasts} />
-      <AuthLayout toast={toast}>
-        {screen === "login" && (
-          <LoginScreen
-            onSwitch={setScreen}
-            onSuccess={handleLoginSuccess}
-            toast={toast}
-          />
-        )}
-        {screen === "signup" && (
-          <SignUpScreen
-            onSwitch={setScreen}
-            onSuccess={handleSignUpSuccess}
-            toast={toast}
-          />
-        )}
-        {screen === "forgot" && (
-          <ForgotScreen
-            onSwitch={setScreen}
-            toast={toast}
-          />
-        )}
-        {screen === "verify" && (
-          <VerifyScreen
-            email={pendingUser?.email}
-            onSuccess={handleVerifySuccess}
-            onBack={() => setScreen("login")}
-            toast={toast}
-          />
-        )}
-      </AuthLayout>
-    pendingUserForgotScreen
+
+      {screen === "login" && (
+        <LoginScreen
+          onSwitch={setScreen}
+          onSuccess={handleLoginSuccess}
+          toast={toast}
+        />
+      )}
+
+      {screen === "signup" && (
+        <SignUpScreen
+          onSwitch={setScreen}
+          onSuccess={handleSignUpSuccess}
+          toast={toast}
+        />
+      )}
+
+      {screen === "verify" && (
+        <VerifyScreen
+          email={pendingUser?.email}
+          onSuccess={handleVerifySuccess}
+          toast={toast}
+        />
+      )}
+
+      {screen === "dashboard" && session && (
+        <Dashboard
+          session={session}
+          onLogout={logout}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ─── RENDER ─── */
+const root = ReactDOM.createRoot(
+  document.getElementById("root")
+);
+
+root.render(<App />);
