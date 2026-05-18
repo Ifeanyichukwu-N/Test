@@ -544,6 +544,7 @@ nav a:hover{
   align-items:center;
   justify-content:center;
   font-size:1.5rem;
+  flex-shrink: 0;
 }
 
 footer{
@@ -679,14 +680,15 @@ footer{
 .phone-console {
   background: #000;
   border: 2px solid #00ff41;
-  padding: 8px;
+  padding: 12px;
   font-family: 'VT323', monospace;
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   color: #00ff41;
-  height: 92px;
+  height: 110px;
   overflow: hidden;
   margin-top: 1rem;
-  box-shadow: inset 0 0 12px rgba(0,255,65,0.3);
+  box-shadow: inset 0 0 12px rgba(0,255,65,0.5);
+  line-height: 1.4;
 }
 
 @media(max-width:900px){
@@ -878,7 +880,7 @@ footer{
         100% LIQUIDITY LOCKED — 24 MONTHS
       </div>
 
-      <!-- Added console display -->
+      <!-- Updated Retro Terminal Console -->
       <div class="phone-console">
         &gt; $ROB CONNECTED<br>
         &gt; PRESALE ACTIVE<br>
@@ -968,7 +970,7 @@ footer{
 
   </div>
 
-  <!-- NEW TOKENOMICS CHART -->
+  <!-- TOKENOMICS CHART -->
   <div class="tokenomics-chart">
     <div class="panel-label" style="margin-bottom:0.8rem;">ALLOCATION DISTRIBUTION</div>
     
@@ -996,7 +998,7 @@ footer{
     </div>
   </div>
 
-  <!-- NEW PARTNERS SECTION -->
+  <!-- PARTNERS SECTION -->
   <div class="partners-section">
     <div class="panel-label">OFFICIAL PARTNERS</div>
     <div class="partners-grid">
@@ -1083,57 +1085,37 @@ footer{
   <div class="contact-grid">
 
     <a class="contact-card" href="https://twitter.com/robecosystem" target="_blank">
-
       <div class="contact-icon">
         <i class="fa-brands fa-x-twitter"></i>
       </div>
-
-      <div>
-        <h4>X / TWITTER</h4>
-        <p>@robecosystem</p>
-      </div>
-
     </a>
 
     <a class="contact-card" href="https://t.me/robecosystem" target="_blank">
-
       <div class="contact-icon">
         <i class="fa-brands fa-telegram"></i>
       </div>
-
-      <div>
-        <h4>TELEGRAM</h4>
-        <p>t.me/robecosystem</p>
-      </div>
-
     </a>
 
     <a class="contact-card" href="mailto:contact@robecosystem@gmail.com">
-
       <div class="contact-icon">
         <i class="fa-solid fa-envelope"></i>
       </div>
-
-      <div>
-        <h4>EMAIL</h4>
-        <p>contact@robecosystem@gmail.com</p>
-      </div>
-
     </a>
 
     <a class="contact-card" href="https://solscan.io" target="_blank">
-
       <div class="contact-icon">
         <i class="fa-solid fa-link"></i>
       </div>
-
-      <div>
-        <h4>SOLSCAN</h4>
-        <p>On-chain explorer</p>
-      </div>
-
     </a>
 
+  </div>
+
+  <!-- New Email Sign-up / Direct Email Section -->
+  <div style="margin-top:2rem; text-align:center;">
+    <a href="mailto:contact@robecosystem@gmail.com" 
+       style="color:var(--sol); text-decoration:none; font-size:0.9rem; border:1px solid var(--sol-dim); padding:0.8rem 1.5rem; display:inline-block;">
+      ✉️ SIGN UP / CONTACT VIA EMAIL
+    </a>
   </div>
 
 </div>
