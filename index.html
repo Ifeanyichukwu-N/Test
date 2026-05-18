@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 
 <style>
+
 :root{
   --green:#00ff41;
   --green-dim:#00a827;
@@ -16,7 +17,6 @@
   --amber:#ffb300;
   --sol:#9945FF;
   --sol-dim:#5c2899;
-  --sol-glow:rgba(153,69,255,0.4);
   --bg:#010b01;
   --panel:#050f05;
   --border:#1a3a1a;
@@ -56,6 +56,7 @@ body::before{
 }
 
 /* SPLASH */
+
 #screen1{
   position:fixed;
   inset:0;
@@ -163,6 +164,8 @@ body::before{
   display:block;
 }
 
+/* HEADER */
+
 header{
   border-bottom:1px solid var(--border);
   padding:0.9rem 2rem;
@@ -195,8 +198,8 @@ header{
 }
 
 .logo-img{
-  width:32px;
-  height:32px;
+  width:48px;
+  height:48px;
   border-radius:50%;
   object-fit:cover;
   border:1px solid var(--green);
@@ -208,6 +211,23 @@ header{
   align-items:center;
   gap:1rem;
   flex-wrap:wrap;
+}
+
+.launch-btn{
+  background:#fff;
+  color:#111;
+  border:none;
+  padding:0.7rem 1.2rem;
+  font-family:'Share Tech Mono', monospace;
+  font-size:0.9rem;
+  border-radius:6px;
+  cursor:pointer;
+  transition:all 0.2s ease;
+}
+
+.launch-btn:hover{
+  transform:translateY(-2px);
+  box-shadow:0 0 12px rgba(255,255,255,0.4);
 }
 
 .status-bar{
@@ -224,6 +244,8 @@ header{
 .status-bar .sol-s{
   color:var(--sol);
 }
+
+/* NAV */
 
 nav{
   display:flex;
@@ -249,6 +271,8 @@ nav a:hover{
   background:rgba(0,255,65,0.06);
 }
 
+/* GRID */
+
 .site-grid{
   display:grid;
   grid-template-columns:1fr 1fr;
@@ -273,6 +297,8 @@ nav a:hover{
   content:'// ';
 }
 
+/* ROBOT PANEL */
+
 .robot-panel{
   grid-column:1;
   grid-row:1/3;
@@ -286,41 +312,19 @@ nav a:hover{
 
 .robot-wrap{
   position:relative;
-  width:260px;
-  animation:robot-float 3s ease-in-out infinite;
-}
-
-@keyframes robot-float{
-  0%,100%{transform:translateY(0);}
-  50%{transform:translateY(-16px);}
-}
-
-.robot-svg{
   width:100%;
+  display:flex;
+  justify-content:center;
+  align-items:center;
 }
 
-.eye{
-  animation:eye-blink 4s step-end infinite;
-}
-
-@keyframes eye-blink{
-  0%,94%,100%{transform:scaleY(1);}
-  96%,98%{transform:scaleY(0.05);}
-}
-
-.antenna-light{
-  animation:ant-blink 1.2s ease-in-out infinite alternate;
-}
-
-@keyframes ant-blink{
-  from{
-    fill:#ff0040;
-    filter:drop-shadow(0 0 4px #ff0040);
-  }
-  to{
-    fill:#ffb300;
-    filter:drop-shadow(0 0 8px #ffb300);
-  }
+.full-robot-img{
+  width:100%;
+  max-width:520px;
+  object-fit:contain;
+  filter:
+    drop-shadow(0 0 12px rgba(0,255,65,0.5))
+    brightness(1.05);
 }
 
 .robot-caption{
@@ -331,6 +335,8 @@ nav a:hover{
   text-align:center;
   letter-spacing:0.12em;
 }
+
+/* MEME */
 
 .meme-panel{
   grid-column:2;
@@ -364,6 +370,8 @@ nav a:hover{
   display:block;
   margin-bottom:0.5rem;
 }
+
+/* PHONE */
 
 .phone-panel{
   grid-column:2;
@@ -474,6 +482,8 @@ nav a:hover{
   margin-top:0.8rem;
 }
 
+/* SECTION HEAD */
+
 .section-head{
   border-top:1px solid var(--border);
   border-bottom:1px solid var(--border);
@@ -495,6 +505,8 @@ nav a:hover{
   height:1px;
   background:var(--border);
 }
+
+/* TOKEN */
 
 .token-section,
 .buy-section,
@@ -547,6 +559,48 @@ nav a:hover{
   border:1px solid var(--sol);
 }
 
+/* PARTNERS */
+
+.partners-section{
+  margin-top:2.5rem;
+  padding-top:2rem;
+  border-top:1px solid var(--border);
+}
+
+.partners-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+  gap:1.5rem;
+  margin-top:1.5rem;
+}
+
+.partner-card{
+  border:1px solid var(--border);
+  padding:1.2rem;
+  text-align:center;
+  transition:all 0.2s;
+  background:rgba(0,255,65,0.02);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+}
+
+.partner-card:hover{
+  border-color:var(--green);
+  background:rgba(0,255,65,0.08);
+  transform:translateY(-4px);
+}
+
+.partner-logo{
+  width:62px;
+  height:62px;
+  object-fit:contain;
+  margin-bottom:0.8rem;
+}
+
+/* BUY */
+
 .buy-section{
   text-align:center;
 }
@@ -595,6 +649,8 @@ nav a:hover{
   text-decoration:none;
 }
 
+/* CONTACT */
+
 .contact-grid{
   display:flex;
   justify-content:center;
@@ -630,6 +686,8 @@ nav a:hover{
   font-size:1.8rem;
 }
 
+/* FOOTER */
+
 footer{
   border-top:1px solid var(--border);
   padding:1.5rem 2rem;
@@ -650,201 +708,109 @@ footer{
   color:var(--green-dim);
 }
 
-/* TOKENOMICS */
-.tokenomics-chart{
-  margin-top:2rem;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  gap:1.5rem;
-}
-
-.chart-container{
-  position:relative;
-  width:280px;
-  height:280px;
-  margin:0 auto;
-}
-
-.pie-chart{
-  width:100%;
-  height:100%;
-  border-radius:50%;
-  background:conic-gradient(
-    #00ff41 0% 55%,
-    #9945FF 55% 90%,
-    #ffb300 90% 100%
-  );
-  position:relative;
-  box-shadow:0 0 30px var(--green-glow);
-}
-
-.chart-center{
-  position:absolute;
-  top:50%;
-  left:50%;
-  transform:translate(-50%,-50%);
-  width:140px;
-  height:140px;
-  background:var(--bg);
-  border-radius:50%;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  border:3px solid var(--green);
-  font-family:'Orbitron',sans-serif;
-  font-size:0.9rem;
-  text-align:center;
-  line-height:1.2;
-}
-
-.legend{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:1rem;
-  width:100%;
-  max-width:420px;
-}
-
-.legend-item{
-  display:flex;
-  align-items:center;
-  gap:0.8rem;
-  font-size:0.85rem;
-}
-
-.legend-color{
-  width:18px;
-  height:18px;
-  border-radius:4px;
-  flex-shrink:0;
-}
-
-.partners-section{
-  margin-top:2.5rem;
-  padding-top:2rem;
-  border-top:1px solid var(--border);
-}
-
-.partners-grid{
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
-  gap:1.5rem;
-  margin-top:1.5rem;
-}
-
-.partner-card{
-  border:1px solid var(--border);
-  padding:1.2rem;
-  text-align:center;
-  transition:all 0.2s;
-  background:rgba(0,255,65,0.02);
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-}
-
-.partner-card:hover{
-  border-color:var(--green);
-  background:rgba(0,255,65,0.08);
-  transform:translateY(-4px);
-}
-
-.partner-logo{
-  width:62px;
-  height:62px;
-  object-fit:contain;
-  margin-bottom:0.8rem;
-}
+/* MOBILE */
 
 @media(max-width:900px){
 
-  .site-grid{
-    grid-template-columns:1fr;
-  }
-
-  .robot-panel{
-    grid-column:1;
-    grid-row:1;
-  }
-
-  .meme-panel{
-    grid-column:1;
-    grid-row:2;
-  }
-
-  .phone-panel{
-    grid-column:1;
-    grid-row:3;
-  }
-
-  .token-grid{
-    grid-template-columns:1fr;
-  }
+.site-grid{
+  grid-template-columns:1fr;
 }
+
+.robot-panel{
+  grid-column:1;
+  grid-row:1;
+}
+
+.meme-panel{
+  grid-column:1;
+  grid-row:2;
+}
+
+.phone-panel{
+  grid-column:1;
+  grid-row:3;
+}
+
+.token-grid{
+  grid-template-columns:1fr;
+}
+
+}
+
 </style>
 </head>
 
 <body>
 
+<!-- SPLASH -->
+
 <div id="screen1">
 
-  <img class="splash-logo"
-  src="https://raw.githubusercontent.com/robecosystem/robecosystem.github.io/refs/heads/main/ROBOTIC%20logo.jpg">
+<img class="splash-logo"
+src="https://raw.githubusercontent.com/robecosystem/robecosystem.github.io/refs/heads/main/ROBOTIC%20logo.jpg">
 
-  <h1 class="splash-title">ROBOTIC</h1>
+<h1 class="splash-title">ROBOTIC</h1>
 
-  <div class="splash-chain">
-    // SOLANA BLOCKCHAIN //
-  </div>
+<div class="splash-chain">
+// SOLANA BLOCKCHAIN //
+</div>
 
-  <div class="loading-bar-wrap">
-    <div class="loading-bar"></div>
-  </div>
+<div class="loading-bar-wrap">
+<div class="loading-bar"></div>
+</div>
 
 </div>
+
+<!-- MAIN -->
 
 <div id="screen2">
 
 <header>
 
-  <div class="logo">
+<div class="logo">
 
-    <a href="https://raw.githubusercontent.com/robecosystem/robecosystem.github.io/refs/heads/main/ROBOTIC%20logo.jpg" target="_blank">
+<a href="https://raw.githubusercontent.com/robecosystem/robecosystem.github.io/refs/heads/main/ROBOTIC%20logo.jpg" target="_blank">
 
-      <img class="logo-img"
-      src="https://raw.githubusercontent.com/robecosystem/robecosystem.github.io/refs/heads/main/ROBOTIC%20logo.jpg">
+<img class="logo-img"
+src="https://raw.githubusercontent.com/robecosystem/robecosystem.github.io/refs/heads/main/ROBOTIC%20logo.jpg">
 
-      ROBOTIC
+ROBOTIC
 
-    </a>
+</a>
 
-  </div>
+</div>
 
-  <div class="header-right">
+<div class="header-right">
 
-    <div class="status-bar">
-      UNIT: <span>RB-7749</span> |
-      CHAIN: <span class="sol-s">SOLANA</span> |
-      AI: <span>ONLINE</span><br>
+<button class="launch-btn">
+Launch App
+</button>
 
-      SUPPLY: <span>120,690,000</span> |
-      CIRC: <span>100%</span>
-    </div>
+<div class="status-bar">
 
-  </div>
+UNIT: <span>RB-7749</span> |
+CHAIN: <span class="sol-s">SOLANA</span> |
+AI: <span>ONLINE</span><br>
+
+SUPPLY: <span>120,690,000</span> |
+CIRC: <span>100%</span>
+
+</div>
+
+</div>
 
 </header>
 
 <nav>
-  <a href="#robot-sec">ROBOT</a>
-  <a href="#token-sec">TOKENOMICS</a>
-  <a href="#buy-sec">BUY</a>
-  <a href="#contact-sec">CONTACT</a>
+<a href="#robot-sec">ROBOT</a>
+<a href="#token-sec">TOKENOMICS</a>
+<a href="#buy-sec">BUY</a>
+<a href="#contact-sec">CONTACT</a>
 </nav>
 
 <div class="site-grid" id="robot-sec">
+
+<!-- ROBOT -->
 
 <div class="panel robot-panel">
 
@@ -854,39 +820,10 @@ Unit RB-7749 — AI-Powered
 
 <div class="robot-wrap">
 
-<svg class="robot-svg" viewBox="0 0 280 380" fill="none">
-
-<line x1="140" y1="10" x2="140" y2="55"
-stroke="#00ff41" stroke-width="3"/>
-
-<circle class="antenna-light"
-cx="140" cy="8" r="7" fill="#ff0040"/>
-
-<rect x="70" y="55"
-width="140"
-height="110"
-rx="8"
-fill="#050f05"
-stroke="#00ff41"
-stroke-width="2"/>
-
-<g class="eye" style="transform-origin:106px 110px">
-<rect x="90" y="99"
-width="32"
-height="22"
-rx="3"
-fill="#00ff41"/>
-</g>
-
-<g class="eye" style="transform-origin:174px 110px">
-<rect x="158" y="99"
-width="32"
-height="22"
-rx="3"
-fill="#00ff41"/>
-</g>
-
-</svg>
+<img
+class="full-robot-img"
+src="https://raw.githubusercontent.com/robecosystem/robecosystem.github.io/refs/heads/main/ROBOTIC%20logo.jpg"
+alt="ROBOTIC AI Robot">
 
 </div>
 
@@ -895,6 +832,8 @@ BEEP BOOP — $ROB ACTIVATED
 </div>
 
 </div>
+
+<!-- MEME -->
 
 <div class="panel meme-panel">
 
@@ -939,9 +878,11 @@ ON SOLANA
 </div>
 
 </div>
+
 </div>
 
 <!-- PHONE -->
+
 <div class="panel phone-panel">
 
 <div class="phone-wrap">
@@ -1025,6 +966,7 @@ View on Solscan
 </div>
 
 <!-- TOKEN -->
+
 <div class="section-head" id="token-sec">
 <h2>TOKENOMICS — ON-CHAIN DATA</h2>
 <div class="line"></div>
@@ -1101,6 +1043,8 @@ SOLANA
 
 </div>
 
+<!-- PARTNERS -->
+
 <div class="partners-section">
 
 <div class="panel-label">
@@ -1109,7 +1053,9 @@ OFFICIAL PARTNERS
 
 <div class="partners-grid">
 
-<a href="https://pinksale.finance" target="_blank" class="partner-card">
+<a href="https://pinksale.finance"
+target="_blank"
+class="partner-card">
 
 <img class="partner-logo"
 src="https://www.pinksale.finance/assets/logo.png">
@@ -1118,7 +1064,9 @@ src="https://www.pinksale.finance/assets/logo.png">
 
 </a>
 
-<a href="https://dexview.com" target="_blank" class="partner-card">
+<a href="https://dexview.com"
+target="_blank"
+class="partner-card">
 
 <img class="partner-logo"
 src="https://dexview.com/favicon.ico">
@@ -1127,7 +1075,9 @@ src="https://dexview.com/favicon.ico">
 
 </a>
 
-<a href="https://raydium.io" target="_blank" class="partner-card">
+<a href="https://raydium.io"
+target="_blank"
+class="partner-card">
 
 <img class="partner-logo"
 src="https://raydium.io/_next/image?url=%2Flogo.png&w=64&q=75">
@@ -1143,6 +1093,7 @@ src="https://raydium.io/_next/image?url=%2Flogo.png&w=64&q=75">
 </div>
 
 <!-- BUY -->
+
 <div class="section-head" id="buy-sec">
 <h2>BUY & SHARE</h2>
 <div class="line"></div>
@@ -1205,6 +1156,7 @@ COMMENT ON OUR FIRST POST & FOLLOW @ROBOTIC
 </div>
 
 <!-- CONTACT -->
+
 <div class="section-head" id="contact-sec">
 <h2>CONTACT & LINKS</h2>
 <div class="line"></div>
@@ -1239,16 +1191,6 @@ href="mailto:contact@robecosystem@gmail.com">
 
 <div class="contact-icon">
 <i class="fa-solid fa-envelope"></i>
-</div>
-
-</a>
-
-<a class="contact-card"
-href="https://solscan.io"
-target="_blank">
-
-<div class="contact-icon">
-<i class="fa-solid fa-link"></i>
 </div>
 
 </a>
@@ -1289,6 +1231,8 @@ style="width:30px;height:30px;border-radius:50%;">
 </div>
 
 </div>
+
+<!-- FOOTER -->
 
 <footer>
 
