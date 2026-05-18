@@ -318,13 +318,10 @@ nav a:hover{
   align-items:center;
 }
 
-.full-robot-img{
+.full-robot-svg{
   width:100%;
   max-width:520px;
-  object-fit:contain;
-  filter:
-    drop-shadow(0 0 12px rgba(0,255,65,0.5))
-    brightness(1.05);
+  filter: drop-shadow(0 0 12px rgba(0,255,65,0.5)) brightness(1.05);
 }
 
 .robot-caption{
@@ -567,36 +564,31 @@ nav a:hover{
   border-top:1px solid var(--border);
 }
 
-.partners-grid{
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
-  gap:1.5rem;
+.partners-icons{
+  display:flex;
+  justify-content:center;
+  gap:2.5rem;
+  flex-wrap:wrap;
   margin-top:1.5rem;
 }
 
-.partner-card{
-  border:1px solid var(--border);
-  padding:1.2rem;
-  text-align:center;
-  transition:all 0.2s;
-  background:rgba(0,255,65,0.02);
+.partner-icon-btn{
+  width:72px;
+  height:72px;
+  border:2px solid var(--border);
+  background:rgba(0,255,65,0.03);
+  border-radius:50%;
   display:flex;
-  flex-direction:column;
   align-items:center;
   justify-content:center;
+  transition:all 0.25s ease;
+  text-decoration:none;
 }
 
-.partner-card:hover{
+.partner-icon-btn:hover{
   border-color:var(--green);
-  background:rgba(0,255,65,0.08);
-  transform:translateY(-4px);
-}
-
-.partner-logo{
-  width:62px;
-  height:62px;
-  object-fit:contain;
-  margin-bottom:0.8rem;
+  background:rgba(0,255,65,0.12);
+  transform:scale(1.08);
 }
 
 /* BUY */
@@ -684,6 +676,24 @@ nav a:hover{
   height:auto;
   border:none;
   font-size:1.8rem;
+}
+
+.solscan-link{
+  display:flex;
+  align-items:center;
+  gap:0.6rem;
+  margin-top:2rem;
+  padding:1rem 1.5rem;
+  border:1px solid var(--border);
+  color:var(--sol);
+  text-decoration:none;
+  font-size:0.9rem;
+  transition:all 0.2s;
+}
+
+.solscan-link:hover{
+  border-color:var(--sol);
+  background:rgba(153,69,255,0.08);
 }
 
 /* FOOTER */
@@ -783,7 +793,7 @@ ROBOTIC
 <div class="header-right">
 
 <button class="launch-btn">
-Launch App
+LAUNCH
 </button>
 
 <div class="status-bar">
@@ -820,10 +830,44 @@ Unit RB-7749 — AI-Powered
 
 <div class="robot-wrap">
 
-<img
-class="full-robot-img"
-src="https://raw.githubusercontent.com/robecosystem/robecosystem.github.io/refs/heads/main/ROBOTIC%20logo.jpg"
-alt="ROBOTIC AI Robot">
+<svg class="full-robot-svg" viewBox="0 0 600 600" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Head -->
+  <rect x="180" y="80" width="240" height="160" rx="30" fill="#0a1f0a" stroke="#00ff41" stroke-width="18"/>
+  <!-- Eyes -->
+  <circle cx="260" cy="160" r="28" fill="#00ff41"/>
+  <circle cx="340" cy="160" r="28" fill="#00ff41"/>
+  <circle cx="260" cy="160" r="12" fill="#010b01"/>
+  <circle cx="340" cy="160" r="12" fill="#010b01"/>
+  <!-- Antenna -->
+  <line x1="300" y1="80" x2="300" y2="30" stroke="#00ff41" stroke-width="14"/>
+  <circle cx="300" cy="25" r="18" fill="#00ff41"/>
+  <!-- Mouth -->
+  <rect x="240" y="210" width="120" height="18" rx="4" fill="#00ff41"/>
+  
+  <!-- Body -->
+  <rect x="150" y="260" width="300" height="220" rx="25" fill="#0a1f0a" stroke="#00ff41" stroke-width="22"/>
+  
+  <!-- Chest Panel -->
+  <rect x="210" y="290" width="180" height="140" rx="12" fill="#010b01" stroke="#00ff41" stroke-width="12"/>
+  <circle cx="300" cy="360" r="35" fill="#00ff41" opacity="0.2"/>
+  
+  <!-- Arms -->
+  <!-- Left Arm -->
+  <rect x="100" y="280" width="70" height="160" rx="25" fill="#0a1f0a" stroke="#00ff41" stroke-width="18"/>
+  <!-- Right Arm -->
+  <rect x="430" y="280" width="70" height="160" rx="25" fill="#0a1f0a" stroke="#00ff41" stroke-width="18"/>
+  
+  <!-- Legs -->
+  <!-- Left Leg -->
+  <rect x="210" y="470" width="65" height="110" rx="15" fill="#0a1f0a" stroke="#00ff41" stroke-width="16"/>
+  <!-- Right Leg -->
+  <rect x="325" y="470" width="65" height="110" rx="15" fill="#0a1f0a" stroke="#00ff41" stroke-width="16"/>
+  
+  <!-- Glow accents -->
+  <rect x="220" y="310" width="160" height="8" fill="#00ff41" opacity="0.6"/>
+  <circle cx="260" cy="380" r="12" fill="#00ff41"/>
+  <circle cx="340" cy="380" r="12" fill="#00ff41"/>
+</svg>
 
 </div>
 
@@ -1051,41 +1095,16 @@ SOLANA
 OFFICIAL PARTNERS
 </div>
 
-<div class="partners-grid">
-
-<a href="https://pinksale.finance"
-target="_blank"
-class="partner-card">
-
-<img class="partner-logo"
-src="https://www.pinksale.finance/assets/logo.png">
-
-<div>PinkSale</div>
-
-</a>
-
-<a href="https://dexview.com"
-target="_blank"
-class="partner-card">
-
-<img class="partner-logo"
-src="https://dexview.com/favicon.ico">
-
-<div>DexView</div>
-
-</a>
-
-<a href="https://raydium.io"
-target="_blank"
-class="partner-card">
-
-<img class="partner-logo"
-src="https://raydium.io/_next/image?url=%2Flogo.png&w=64&q=75">
-
-<div>Raydium</div>
-
-</a>
-
+<div class="partners-icons">
+  <a href="https://pinksale.finance" target="_blank" class="partner-icon-btn">
+    <img src="https://www.pinksale.finance/assets/logo.png" style="width:42px;height:42px;object-fit:contain;">
+  </a>
+  <a href="https://dexview.com" target="_blank" class="partner-icon-btn">
+    <img src="https://dexview.com/favicon.ico" style="width:42px;height:42px;object-fit:contain;border-radius:50%;">
+  </a>
+  <a href="https://raydium.io" target="_blank" class="partner-icon-btn">
+    <img src="https://raydium.io/_next/image?url=%2Flogo.png&w=64&q=75" style="width:42px;height:42px;object-fit:contain;">
+  </a>
 </div>
 
 </div>
@@ -1195,40 +1214,12 @@ href="mailto:contact@robecosystem@gmail.com">
 
 </a>
 
-<a class="contact-card"
-href="https://dexview.com"
-target="_blank">
-
-<div class="contact-icon">
-<img src="https://dexview.com/favicon.ico"
-style="width:30px;height:30px;border-radius:50%;">
 </div>
 
+<a href="https://solscan.io/token/YOUR_TOKEN_ADDRESS_HERE" target="_blank" class="solscan-link">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  VIEW ON SOLSCAN
 </a>
-
-<a class="contact-card"
-href="https://pinksale.finance"
-target="_blank">
-
-<div class="contact-icon">
-<img src="https://www.pinksale.finance/assets/logo.png"
-style="width:30px;height:30px;border-radius:50%;">
-</div>
-
-</a>
-
-<a class="contact-card"
-href="https://raydium.io"
-target="_blank">
-
-<div class="contact-icon">
-<img src="https://raydium.io/_next/image?url=%2Flogo.png&w=64&q=75"
-style="width:30px;height:30px;border-radius:50%;">
-</div>
-
-</a>
-
-</div>
 
 </div>
 
