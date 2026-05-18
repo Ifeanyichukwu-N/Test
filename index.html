@@ -358,10 +358,33 @@ nav a:hover{
   background:#010901;
   display:flex;
   gap:2rem;
+  align-items: flex-start;
 }
 
 .phone-svg{
-  width:110px;
+  width:130px;
+  position: relative;
+}
+
+.phone-screen {
+  position: absolute;
+  top: 28px;
+  left: 12px;
+  width: 106px;
+  height: 145px;
+  background: #000;
+  border: 2px solid #00ff41;
+  border-radius: 4px;
+  padding: 8px;
+  overflow: hidden;
+  font-family: 'VT323', monospace;
+  font-size: 0.68rem;
+  color: #00ff41;
+  box-shadow: inset 0 0 10px rgba(0,255,65,0.6);
+}
+
+.phone-info{
+  flex: 1;
 }
 
 .phone-info h3{
@@ -395,7 +418,7 @@ nav a:hover{
   color:var(--sol);
   font-size:0.65rem;
   padding:0.3rem 0.7rem;
-  margin-top:0.5rem;
+  margin-top:0.8rem;
 }
 
 .section-head{
@@ -521,30 +544,35 @@ nav a:hover{
 
 .contact-grid{
   display:grid;
-  grid-template-columns:repeat(2,1fr);
-  gap:1.5rem;
+  grid-template-columns:repeat(4,1fr);
+  gap:1rem;
   margin-top:1.5rem;
 }
 
 .contact-card{
   border:1px solid var(--border);
-  padding:1.5rem;
+  padding:1.2rem 0.8rem;
   display:flex;
   align-items:center;
-  gap:1.2rem;
+  justify-content:center;
   text-decoration:none;
   color:inherit;
+  transition: all 0.2s;
+}
+
+.contact-card:hover{
+  background:rgba(0,255,65,0.08);
+  border-color: var(--green);
 }
 
 .contact-icon{
-  width:48px;
-  height:48px;
+  width:52px;
+  height:52px;
   border:1px solid var(--border);
   display:flex;
   align-items:center;
   justify-content:center;
-  font-size:1.5rem;
-  flex-shrink: 0;
+  font-size:1.6rem;
 }
 
 footer{
@@ -674,21 +702,6 @@ footer{
 
 .partner-logo:hover {
   filter: brightness(1.1);
-}
-
-/* Phone console enhancement */
-.phone-console {
-  background: #000;
-  border: 2px solid #00ff41;
-  padding: 12px;
-  font-family: 'VT323', monospace;
-  font-size: 0.75rem;
-  color: #00ff41;
-  height: 110px;
-  overflow: hidden;
-  margin-top: 1rem;
-  box-shadow: inset 0 0 12px rgba(0,255,65,0.5);
-  line-height: 1.4;
 }
 
 @media(max-width:900px){
@@ -848,13 +861,19 @@ footer{
   <div class="panel phone-panel">
 
     <div class="phone-wrap">
-
-      <svg class="phone-svg" viewBox="0 0 110 200" fill="none" xmlns="http://www.w3.org/2000/svg">
-
-        <rect x="5" y="5" width="100" height="190" rx="14" fill="#050f05" stroke="#00ff41" stroke-width="2"/>
-
+      <svg class="phone-svg" viewBox="0 0 130 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="5" y="5" width="120" height="210" rx="18" fill="#050f05" stroke="#00ff41" stroke-width="8"/>
+        <!-- Camera -->
+        <rect x="50" y="18" width="30" height="8" rx="2" fill="#1a3a1a"/>
       </svg>
-
+      
+      <!-- Console moved INSIDE the phone screen -->
+      <div class="phone-screen">
+        &gt; $ROB CONNECTED<br>
+        &gt; PRESALE ACTIVE<br>
+        &gt; LIQUIDITY: 35%<br>
+        &gt; STATUS: ONLINE
+      </div>
     </div>
 
     <div class="phone-info">
@@ -878,14 +897,6 @@ footer{
       <div class="lock-badge">
         <i class="fa-solid fa-lock"></i>
         100% LIQUIDITY LOCKED — 24 MONTHS
-      </div>
-
-      <!-- Updated Retro Terminal Console -->
-      <div class="phone-console">
-        &gt; $ROB CONNECTED<br>
-        &gt; PRESALE ACTIVE<br>
-        &gt; LIQUIDITY: 35%<br>
-        &gt; STATUS: ONLINE
       </div>
 
     </div>
@@ -970,7 +981,6 @@ footer{
 
   </div>
 
-  <!-- TOKENOMICS CHART -->
   <div class="tokenomics-chart">
     <div class="panel-label" style="margin-bottom:0.8rem;">ALLOCATION DISTRIBUTION</div>
     
@@ -998,7 +1008,6 @@ footer{
     </div>
   </div>
 
-  <!-- PARTNERS SECTION -->
   <div class="partners-section">
     <div class="panel-label">OFFICIAL PARTNERS</div>
     <div class="partners-grid">
@@ -1110,14 +1119,6 @@ footer{
 
   </div>
 
-  <!-- New Email Sign-up / Direct Email Section -->
-  <div style="margin-top:2rem; text-align:center;">
-    <a href="mailto:contact@robecosystem@gmail.com" 
-       style="color:var(--sol); text-decoration:none; font-size:0.9rem; border:1px solid var(--sol-dim); padding:0.8rem 1.5rem; display:inline-block;">
-      ✉️ SIGN UP / CONTACT VIA EMAIL
-    </a>
-  </div>
-
 </div>
 
 <footer>
@@ -1149,22 +1150,16 @@ footer{
 <script>
 function enterSite(){
   document.getElementById('screen1').classList.add('hidden');
-
   const s2 = document.getElementById('screen2');
-
   s2.classList.add('visible');
 }
 
 window.addEventListener('load',()=>{
-
   const s2=document.getElementById('screen2');
-
   s2.classList.add('visible');
-
   setTimeout(()=>{
     document.getElementById('screen1').classList.add('hidden');
   },2200);
-
 });
 </script>
 
